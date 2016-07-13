@@ -1,0 +1,15 @@
+1) Install Xubuntu/Preferred Linux Flavor (tm)
+2) Get https://launchpad.net/gcc-arm-embedded/5.0/5-2016-q2-update/+download/gcc-arm-none-eabi-5_4-2016q2-20160622-linux.tar.bz2
+3) tar xvf above
+4) rm archive from step 2 to save space
+5) git clone https://github.com/Aghosh993/QuadcopterCodebase.git
+6) export PATH=(path to gcc toolchain bin directory from 3):$PATH
+7) Install lib32ncurses5
+8) git clone https://github.com/ntfreak/openocd.git
+9) sudo apt-get install libtool autoconf automake texinfo libusb-dev libusb-1.0-0-dev
+10) cd openocd
+11) ./bootstrap
+12) ./configure
+13) make
+14) cp stlink udev rule to /etc/udev/rules.d/
+15) sudo udevadm control --reload-rules
