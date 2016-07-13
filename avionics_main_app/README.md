@@ -1,6 +1,5 @@
 # README
 
-This program is similar to the one in "blinky_proj" but it uses the CM3 Systick
-interrupt instead of a busy wait in the main application code.
-
-The blue led should blink on the STM32F3Discovery board when running this code, at 2 Hz
+This is the mission-critical avionics main application. This is the 
+source code for the main app in the FLIGHT build of the avionics 
+software that runs on the STM32F3 Discovery Board.
