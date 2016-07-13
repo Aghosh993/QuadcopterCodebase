@@ -1,0 +1,15 @@
+e = set - meas (CORRECT CONVENTION)
+
+Worked example:
+
+set meas e
+
+0 10 -10
+0 9  -9
+0 8  -8
+0 7  -7
+
+If derivative on MEASUREMENT: Derivative term MUST be of form -1.0f * k_D * dMeasurement/dT
+If derivative on ERROR: Derivative term MUST be of form k_D * dMeasurement/dT
+
+k_D SHALL always be a positive floating-point number!!!!
