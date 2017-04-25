@@ -13,13 +13,18 @@
 #include "interrupt_utils.h"
 
 typedef enum {
-	UART5,
-	UART6,
-	UART7,
-
-	CAN_ENCAP_UART5,
-	CAN_ENCAP_UART6,
-	CAN_ENCAP_UART7
+	#if defined USE_CAN_ENCAP
+		UART5,
+		UART6,
+		UART7,
+		CAN_ENCAP_UART5,
+		CAN_ENCAP_UART6,
+		CAN_ENCAP_UART7
+	#else
+		UART5,
+		UART6,
+		UART7
+	#endif
 } serialport_desc;
 
 /*

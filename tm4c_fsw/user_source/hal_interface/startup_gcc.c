@@ -55,6 +55,7 @@ extern void UART5IntHandler(void);
 extern void UART6IntHandler(void);
 extern void UART7IntHandler(void);
 extern void CANIntHandler(void);
+extern void Systick_Handler(void);
 
 //*****************************************************************************
 //
@@ -95,7 +96,7 @@ void (* const g_pfnVectors[])(void) =
     IntDefaultHandler,                      // Debug monitor handler
     0,                                      // Reserved
     IntDefaultHandler,                      // The PendSV handler
-    IntDefaultHandler,                      // The SysTick handler
+    Systick_Handler,                        // The SysTick handler
     IntDefaultHandler,                      // GPIO Port A
     IntDefaultHandler,                      // GPIO Port B
     IntDefaultHandler,                      // GPIO Port C

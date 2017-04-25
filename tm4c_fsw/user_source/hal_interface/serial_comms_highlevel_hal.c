@@ -1,92 +1,95 @@
 /*
-	File: serial_comms_highlevel_hal.c
+    File: serial_comms_highlevel_hal.c
 
-	(c) Abhimanyu Ghosh, 2016
+    (c) Abhimanyu Ghosh, 2016
  */
 
 #include "serial_comms_highlevel_hal.h"
 
-static void can0_init(void)
-{
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
-    while(!SysCtlPeripheralReady(SYSCTL_PERIPH_GPIOF));
-    HWREG(GPIO_PORTF_BASE + GPIO_O_LOCK) = GPIO_LOCK_KEY; //Unlock GPIO_CR register with this magic value
-    HWREG(GPIO_PORTF_BASE + GPIO_O_CR) = 0xFF;
-
-    GPIOPinConfigure(GPIO_PF0_CAN0RX);
-    GPIOPinConfigure(GPIO_PF3_CAN0TX); 
-    GPIOPinTypeCAN(GPIO_PORTF_BASE, GPIO_PIN_0 | GPIO_PIN_3);
-
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_CAN0);
-    while(!SysCtlPeripheralReady(SYSCTL_PERIPH_CAN0));
-
-    CANInit(CAN0_BASE);
-
-    if(CANBitRateSet(CAN0_BASE, SysCtlClockGet(), 500000)!=500000)
+#if defined USE_CAN_ENCAP
+    static void can0_init(void)
     {
-        while(1);
+        SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
+        while(!SysCtlPeripheralReady(SYSCTL_PERIPH_GPIOF));
+        HWREG(GPIO_PORTF_BASE + GPIO_O_LOCK) = GPIO_LOCK_KEY; //Unlock GPIO_CR register with this magic value
+        HWREG(GPIO_PORTF_BASE + GPIO_O_CR) = 0xFF;
+
+        GPIOPinConfigure(GPIO_PF0_CAN0RX);
+        GPIOPinConfigure(GPIO_PF3_CAN0TX); 
+        GPIOPinTypeCAN(GPIO_PORTF_BASE, GPIO_PIN_0 | GPIO_PIN_3);
+
+        SysCtlPeripheralEnable(SYSCTL_PERIPH_CAN0);
+        while(!SysCtlPeripheralReady(SYSCTL_PERIPH_CAN0));
+
+        CANInit(CAN0_BASE);
+
+        if(CANBitRateSet(CAN0_BASE, SysCtlClockGet(), 500000)!=500000)
+        {
+            while(1);
+        }
+
+        CANIntEnable(CAN0_BASE, CAN_INT_MASTER | CAN_INT_ERROR | CAN_INT_STATUS);
+        IntEnable(INT_CAN0);
+        
+        CANEnable(CAN0_BASE);
+
+        tCANMsgObject sMsgObjectRx_uart5;
+        sMsgObjectRx_uart5.ui32MsgID = 0xC0000002;
+        sMsgObjectRx_uart5.ui32MsgIDMask = 0xFFFF;
+        sMsgObjectRx_uart5.ui32Flags = MSG_OBJ_RX_INT_ENABLE | MSG_OBJ_USE_ID_FILTER;
+        sMsgObjectRx_uart5.ui32MsgLen = 1;
+        CANMessageSet(CAN0_BASE, 4, &sMsgObjectRx_uart5, MSG_OBJ_TYPE_RX);
+
+        tCANMsgObject sMsgObjectRx_uart6;
+        sMsgObjectRx_uart6.ui32MsgID = 0xC0000004;
+        sMsgObjectRx_uart6.ui32MsgIDMask = 0xFFFF;
+        sMsgObjectRx_uart6.ui32Flags = MSG_OBJ_RX_INT_ENABLE | MSG_OBJ_USE_ID_FILTER;
+        sMsgObjectRx_uart6.ui32MsgLen = 1;
+        CANMessageSet(CAN0_BASE, 5, &sMsgObjectRx_uart6, MSG_OBJ_TYPE_RX);
+
+        tCANMsgObject sMsgObjectRx_uart7;
+        sMsgObjectRx_uart7.ui32MsgID = 0xC0000006;
+        sMsgObjectRx_uart7.ui32MsgIDMask = 0xFFFF;
+        sMsgObjectRx_uart7.ui32Flags = MSG_OBJ_RX_INT_ENABLE | MSG_OBJ_USE_ID_FILTER;
+        sMsgObjectRx_uart7.ui32MsgLen = 1;
+        CANMessageSet(CAN0_BASE, 6, &sMsgObjectRx_uart7, MSG_OBJ_TYPE_RX);
+
+        CANRetrySet(CAN0_BASE, true);
     }
 
-    CANIntEnable(CAN0_BASE, CAN_INT_MASTER | CAN_INT_ERROR | CAN_INT_STATUS);
-    IntEnable(INT_CAN0);
-    
-    CANEnable(CAN0_BASE);
-
-    tCANMsgObject sMsgObjectRx_uart5;
-    sMsgObjectRx_uart5.ui32MsgID = 0xC0000002;
-    sMsgObjectRx_uart5.ui32MsgIDMask = 0xFFFF;
-    sMsgObjectRx_uart5.ui32Flags = MSG_OBJ_RX_INT_ENABLE | MSG_OBJ_USE_ID_FILTER;
-    sMsgObjectRx_uart5.ui32MsgLen = 1;
-    CANMessageSet(CAN0_BASE, 4, &sMsgObjectRx_uart5, MSG_OBJ_TYPE_RX);
-
-    tCANMsgObject sMsgObjectRx_uart6;
-    sMsgObjectRx_uart6.ui32MsgID = 0xC0000004;
-    sMsgObjectRx_uart6.ui32MsgIDMask = 0xFFFF;
-    sMsgObjectRx_uart6.ui32Flags = MSG_OBJ_RX_INT_ENABLE | MSG_OBJ_USE_ID_FILTER;
-    sMsgObjectRx_uart6.ui32MsgLen = 1;
-    CANMessageSet(CAN0_BASE, 5, &sMsgObjectRx_uart6, MSG_OBJ_TYPE_RX);
-
-    tCANMsgObject sMsgObjectRx_uart7;
-    sMsgObjectRx_uart7.ui32MsgID = 0xC0000006;
-    sMsgObjectRx_uart7.ui32MsgIDMask = 0xFFFF;
-    sMsgObjectRx_uart7.ui32Flags = MSG_OBJ_RX_INT_ENABLE | MSG_OBJ_USE_ID_FILTER;
-    sMsgObjectRx_uart7.ui32MsgLen = 1;
-    CANMessageSet(CAN0_BASE, 6, &sMsgObjectRx_uart7, MSG_OBJ_TYPE_RX);
-
-    CANRetrySet(CAN0_BASE, true);
-}
-
-static void can0_uart_relay(serialport_desc u, uint8_t byte_to_send)
-{
-    // UARTCharPut(UART6_BASE, byte_to_send);
-    uint8_t data[8];
-    tCANMsgObject sCANMessage;
-    
-    data[0] = byte_to_send;
-
-    sCANMessage.ui32MsgIDMask = 0xF; // Do we need this for TX objects?? We'll find out :)
-    sCANMessage.ui32Flags = 0;//MSG_OBJ_TX_INT_ENABLE;
-    sCANMessage.ui32MsgLen = 1;
-    sCANMessage.pui8MsgData = &data[0];
-
-    switch(u)
+    static void can0_uart_relay(serialport_desc u, uint8_t byte_to_send)
     {
-        case CAN_ENCAP_UART5:
-            sCANMessage.ui32MsgID = 0x60000001;
-            CANMessageSet(CAN0_BASE, 1, &sCANMessage, MSG_OBJ_TYPE_TX);
-            break;
-        case CAN_ENCAP_UART6:
-            sCANMessage.ui32MsgID = 0x60000003;
-            CANMessageSet(CAN0_BASE, 2, &sCANMessage, MSG_OBJ_TYPE_TX);
-            break;
-        case CAN_ENCAP_UART7:
-            sCANMessage.ui32MsgID = 0x60000005;
-            CANMessageSet(CAN0_BASE, 3, &sCANMessage, MSG_OBJ_TYPE_TX);
-            break;
-        default:
-            break;
+        // UARTCharPut(UART6_BASE, byte_to_send);
+        uint8_t data[8];
+        tCANMsgObject sCANMessage;
+        
+        data[0] = byte_to_send;
+
+        sCANMessage.ui32MsgIDMask = 0xF; // Do we need this for TX objects?? We'll find out :)
+        sCANMessage.ui32Flags = MSG_OBJ_TX_INT_ENABLE;
+        sCANMessage.ui32MsgLen = 1;
+        sCANMessage.pui8MsgData = &data[0];
+
+        switch(u)
+        {
+            case CAN_ENCAP_UART5:
+                sCANMessage.ui32MsgID = 0x60000001;
+                CANMessageSet(CAN0_BASE, 1, &sCANMessage, MSG_OBJ_TYPE_TX);
+                break;
+            case CAN_ENCAP_UART6:
+                sCANMessage.ui32MsgID = 0x60000003;
+                CANMessageSet(CAN0_BASE, 1, &sCANMessage, MSG_OBJ_TYPE_TX);
+                break;
+            case CAN_ENCAP_UART7:
+                sCANMessage.ui32MsgID = 0x00000005;
+                CANMessageSet(CAN0_BASE, 1, &sCANMessage, MSG_OBJ_TYPE_TX);
+                break;
+            default:
+                break;
+        }
     }
-}
+
+#endif
 
 static void uart5_setup(void)
 {
@@ -165,120 +168,133 @@ static void uart7_setup(void)
 }
 
 /*
-	Initializes all required high-level real/virtual serial port HAL drivers:
+    Initializes all required high-level real/virtual serial port HAL drivers:
  */
 void serialport_hal_init(void)
 {
-	// can0_init();
- //    uart5_setup();
- //    uart6_setup();
+    #if defined USE_CAN_ENCAP
+        can0_init();
+    #endif
+
+    uart5_setup();
+    uart6_setup();
     uart7_setup();
 }
 
 void serialport_hal_enable_tx_isr(serialport_desc port_descriptor)
 {
-	switch(port_descriptor)
-	{
-		case UART5:
-			UARTIntEnable(UART5_BASE, UART_INT_TX);
-			break;
-		case UART6:
-			UARTIntEnable(UART6_BASE, UART_INT_TX);
-			break;
-		case UART7:
-            UARTIntEnable(UART7_BASE, UART_INT_TX);
-			break;
-		case CAN_ENCAP_UART5:
-			break;
-		case CAN_ENCAP_UART6:
-			break;
-		case CAN_ENCAP_UART7:
+    switch(port_descriptor)
+    {
+        case UART5:
+            UARTIntEnable(UART5_BASE, UART_INT_TX);
             break;
-		default:
-			break;
-	}
+        case UART6:
+            UARTIntEnable(UART6_BASE, UART_INT_TX);
+            break;
+        case UART7:
+            UARTIntEnable(UART7_BASE, UART_INT_TX);
+            break;
+        #if defined USE_CAN_ENCAP
+            case CAN_ENCAP_UART5:
+                break;
+            case CAN_ENCAP_UART6:
+                break;
+            case CAN_ENCAP_UART7:
+                break;
+        #endif
+        default:
+            break;
+    }
 }
 
 void serialport_hal_disable_tx_isr(serialport_desc port_descriptor)
 {
-	switch(port_descriptor)
-	{
-		case UART5:
-			UARTIntDisable(UART5_BASE, UART_INT_TX);
-			break;
-		case UART6:
-			UARTIntDisable(UART6_BASE, UART_INT_TX);
-			break;
-		case UART7:
-            UARTIntDisable(UART7_BASE, UART_INT_TX);
-			break;
-		case CAN_ENCAP_UART5:
-            CANMessageClear(CAN0_BASE, 1);
-			break;
-		case CAN_ENCAP_UART6:
-			CANMessageClear(CAN0_BASE, 2);
+    switch(port_descriptor)
+    {
+        case UART5:
+            UARTIntDisable(UART5_BASE, UART_INT_TX);
             break;
-		case CAN_ENCAP_UART7:
-            CANMessageClear(CAN0_BASE, 3);
-			break;
-		default:
-			break;
-	}
+        case UART6:
+            UARTIntDisable(UART6_BASE, UART_INT_TX);
+            break;
+        case UART7:
+            UARTIntDisable(UART7_BASE, UART_INT_TX);
+            break;
+        #if defined USE_CAN_ENCAP
+            case CAN_ENCAP_UART5:
+                CANMessageClear(CAN0_BASE, 1);
+                break;
+            case CAN_ENCAP_UART6:
+                CANMessageClear(CAN0_BASE, 2);
+                break;
+            case CAN_ENCAP_UART7:
+                CANMessageClear(CAN0_BASE, 3);
+                break;
+        #endif
+        default:
+            break;
+    }
 }
 
 int serialport_send_byte(serialport_desc port_descriptor, uint8_t byte_to_send)
 {
-	switch(port_descriptor)
-	{
-		case UART5:
+    switch(port_descriptor)
+    {
+        case UART5:
             UARTCharPut(UART5_BASE, byte_to_send);
-			break;
-		case UART6:
+            break;
+        case UART6:
             UARTCharPut(UART6_BASE, byte_to_send);
-			break;
+            break;
         case UART7:
             UARTCharPut(UART7_BASE, byte_to_send);
             break;
-		case CAN_ENCAP_UART5:
-            can0_uart_relay(port_descriptor, byte_to_send);
-			break;
-		case CAN_ENCAP_UART6:
-            can0_uart_relay(port_descriptor, byte_to_send);
-			break;
-		case CAN_ENCAP_UART7:
-            can0_uart_relay(port_descriptor, byte_to_send);
-			break;
-		default:
-			return -1;
-	}
+        #if defined USE_CAN_ENCAP
+            case CAN_ENCAP_UART5:
+                can0_uart_relay(port_descriptor, byte_to_send);
+                break;
+            case CAN_ENCAP_UART6:
+                can0_uart_relay(port_descriptor, byte_to_send);
+                break;
+            case CAN_ENCAP_UART7:
+                can0_uart_relay(port_descriptor, byte_to_send);
+                break;
+        #endif
+        default:
+            return -1;
+    }
     return -1; // Return error code if we get here for whatever reason...
 }
 
 uint8_t serialport_receive_byte(serialport_desc port_descriptor)
 {
-    uint8_t can_rx_data[8];
-    tCANMsgObject rx;
-    
-    rx.pui8MsgData = can_rx_data;
+    #if defined USE_CAN_ENCAP
+        uint8_t can_rx_data[8];
+        tCANMsgObject rx;
+        
+        rx.pui8MsgData = can_rx_data;
+    #endif
 
-	switch(port_descriptor)
-	{
-		case UART5:
-			return (uint8_t)UARTCharGetNonBlocking(UART5_BASE);
-		case UART6:
-			return (uint8_t)UARTCharGetNonBlocking(UART6_BASE);
-		case UART7:
-			return (uint8_t)UARTCharGetNonBlocking(UART7_BASE);
-		case CAN_ENCAP_UART5:
-            CANMessageGet(CAN0_BASE, 4, &rx, 1);
-			return can_rx_data[0];
-		case CAN_ENCAP_UART6:
-            CANMessageGet(CAN0_BASE, 5, &rx, 1);
-            return can_rx_data[0];
-		case CAN_ENCAP_UART7:
-            CANMessageGet(CAN0_BASE, 6, &rx, 1);
-            return can_rx_data[0];
-		default:
-			return 0;
-	}
+    switch(port_descriptor)
+    {
+        case UART5:
+            return (uint8_t)UARTCharGetNonBlocking(UART5_BASE);
+        case UART6:
+            return (uint8_t)UARTCharGetNonBlocking(UART6_BASE);
+        case UART7:
+            return (uint8_t)UARTCharGetNonBlocking(UART7_BASE);
+        #if defined USE_CAN_ENCAP
+            case CAN_ENCAP_UART5:
+                CANMessageGet(CAN0_BASE, 4, &rx, 1);
+                return can_rx_data[0];
+            case CAN_ENCAP_UART6:
+                CANMessageGet(CAN0_BASE, 5, &rx, 1);
+                return can_rx_data[0];
+            case CAN_ENCAP_UART7:
+                CANMessageGet(CAN0_BASE, 6, &rx, 1);
+                return can_rx_data[0];
+        #endif
+        default:
+            return 0;
+    }
 }

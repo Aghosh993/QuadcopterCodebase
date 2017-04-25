@@ -88,6 +88,8 @@ int main(void)
 
 	cpu_init();
 
+	while(1);
+
 	board_led_init(); // Initialize the MibSPI in GPIO mode to be able to use system LEDs on interface board.
 
 	// Initialize all configured serial ports, including HAL subsystems + data structs for asynch tx/rx:

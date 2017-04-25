@@ -170,3 +170,12 @@ void serialport_highlevel_rx_isr(serialport *port)
 		port->rx_buffer_latest_write_position %= SERIAL_BUFFER_SIZE;
 	}
 }
+
+int serialport_tx_buf_empty(serialport *port)
+{
+	if(port->tx_buffer_latest_read_position == port->tx_buffer_latest_write_position)
+	{
+		return 1;
+	}
+	return 0;
+}

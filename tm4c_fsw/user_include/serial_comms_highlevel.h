@@ -10,7 +10,7 @@
 #include <stdint.h>
 #include "serial_comms_highlevel_hal.h"
 
-#define SERIAL_BUFFER_SIZE	80U
+#define SERIAL_BUFFER_SIZE	180U
 
 typedef enum {
 	PORT_IDLE,
@@ -44,5 +44,7 @@ void serialport_receive_data_buffer_blocking(serialport *port, uint8_t *data, ui
 
 void serialport_highlevel_tx_isr(serialport *port);
 void serialport_highlevel_rx_isr(serialport *port);
+
+int serialport_tx_buf_empty(serialport *port);
 
 #endif
