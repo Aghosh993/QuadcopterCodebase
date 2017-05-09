@@ -8,37 +8,78 @@ import time
 
 def main():
 	parser = argparse.ArgumentParser(description='Display CAN bus telemetry items')
-	parser.add_argument('sensor_id', metavar='sensor', nargs=1, help='Sensor ID to get data for. Options: sf11_bno055, flow')
+	parser.add_argument('sensor_id', metavar='sensor', nargs=1, help='Sensor ID to get data for. Options: sf11_bno055, flow, ahrs_rp, yaw_height, v_z')
+	parser.add_argument('logfile', metavar='log_file', nargs=1, help='File to log the raw data to')
 
 	args = parser.parse_args()
 
 	sensor = args.sensor_id[0]
-	if sensor != "sf11_bno055" and sensor != "flow":
-		print("Usage: ./sensor_tester.py [SENSOR]")
-		print("[SENSOR]=sf11_bno55 or flow")
+	filename = args.logfile[0]
+
+	try:
+		fp = open(filename, "w+")
+	except IOError:
+		print("Failed to open log file!!")
 		exit()
 
 	print("Welcome to the CAN tester")
 
 	can_iface = "can0" # Change this to the CAN interface identifier shown by ifconfig
-
-	if sensor == "sf11_bno055":
-		arbID = 1
-		print("Acquiring height and heading sensor data now...")
-	if sensor == "flow":
-		arbID = 2
-		print("Acquiring X and Y flow sensor data now...")
-
 	print("Attempting to open SocketCAN interface on can0...")
 	bus = can.interface.Bus(can_iface, bustype='socketcan_native')
 
-	while True:
-		msg = bus.recv()
-		if(msg.arbitration_id == arbID and msg.is_extended_id==False):
-			height_heading_msg = unpack('<ff', msg.data[0:8])
-			print("Height: %0.2f"%height_heading_msg[0]+", Heading: %0.1f"%height_heading_msg[1])
-			time.sleep(0.02)
-
+	if sensor == "sf11_bno055":
+		print("Acquiring height and heading sensor data now...")
+		arbID = 1
+		while True:
+			msg = bus.recv()
+			if(msg.arbitration_id == arbID and msg.is_extended_id==False):
+				height_heading_msg = unpack('<ff', msg.data[0:8])
+				print("Height: %0.2f"%height_heading_msg[0]+", Heading: %0.1f"%height_heading_msg[1])
+				fp.write("%0.2f"%height_heading_msg[0]+", %0.1f\n"%height_heading_msg[1])
+				# time.sleep(0.02)
+	if sensor == "flow":
+		print("Acquiring X and Y flow sensor data now...")
+		arbID = 2
+		while True:
+			msg = bus.recv()
+			if(msg.arbitration_id == arbID and msg.is_extended_id==False):
+				flow_msg = unpack('<ff', msg.data[0:8])
+				print("X: %0.2f"%flow_msg[0]+", Y: %0.2f"%flow_msg[1])
+				fp.write("%0.2f"%flow_msg[0]+", %0.2f\n"%flow_msg[1])
+				# time.sleep(0.02)
+	if sensor == "ahrs_rp":
+		print("Acquiring AHRS roll and pitch data now...")
+		arbID = 3
+		while True:
+			msg = bus.recv()
+			if(msg.arbitration_id == arbID and msg.is_extended_id==False):
+				ahrs_rp_msg = unpack('<ff', msg.data[0:8])
+				print("Roll: %0.2f"%ahrs_rp_msg[0]+", Pitch: %0.2f"%ahrs_rp_msg[1])
+				fp.write("%0.2f"%ahrs_rp_msg[0]+", %0.2f\n"%ahrs_rp_msg[1])
+				# time.sleep(0.02)
+	if sensor == "yaw_height":
+		print("Acquiring yaw sensor and height estimator data now...")
+		arbID = 4
+		while True:
+			msg = bus.recv()
+			if(msg.arbitration_id == arbID and msg.is_extended_id==False):
+				yaw_height_msg = unpack('<ff', msg.data[0:8])
+				print("Yaw: %0.2f"%yaw_height_msg[0]+", Height_Est: %0.2f"%yaw_height_msg[1])
+				fp.write("%0.2f"%yaw_height_msg[0]+", %0.2f\n"%yaw_height_msg[1])
+				# time.sleep(0.02)
+	if sensor == "v_z":
+		print("Acquiring vertical velocity estimator data now...")
+		arbID = 5
+		while True:
+			msg = bus.recv()
+			if(msg.arbitration_id == arbID and msg.is_extended_id==False):
+				v_z_msg = unpack('<f', msg.data[0:4])
+				print("Vertical Vel: %0.2f"%v_z_msg[0])
+				fp.write("%0.2f\n"%v_z_msg[0])
+				# time.sleep(0.02)
+	
+	fp.close()
 
 if __name__ == '__main__':
 	main()

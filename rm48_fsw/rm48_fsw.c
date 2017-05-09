@@ -18,6 +18,7 @@
 #include "can_comms.h"
 #include "cpu_hal_interface.h"
 #include "system_shell.h"	
+#include "can_comms.h"
 
 #include <stdint.h>
 #include <stdio.h>
@@ -268,8 +269,8 @@ void flight_app(int argc, char** argv)
 	QuadRotor_motor3_setDuty(0.0f);
 	QuadRotor_motor4_setDuty(0.0f);
 
-	serialport_hal_init();
-	serialport_init(&ftdi_dbg_port, PORT1);
+	// serialport_hal_init();
+	// serialport_init(&ftdi_dbg_port, PORT1);
 	rt_telemetry_init_channel(&telem0, &ftdi_dbg_port);
 
 	_enable_interrupts();
@@ -383,6 +384,7 @@ void flight_app(int argc, char** argv)
 
 	uint8_t bno_bytes_read = 0U;
 	int bno_bytes_total = 0U;
+	float yaw_sensor_reading = 0.0f;
 
 	while(1)
 	{
@@ -482,11 +484,24 @@ void flight_app(int argc, char** argv)
 					
 					board_led_toggle(LED1);
 					height_sensor_reading = get_last_can_height_msg();
+					yaw_sensor_reading = get_last_can_heading_msg();
 				}
 				
 				if(get_flag_state(flag_50hz) == STATE_PENDING)
 				{
 					reset_flag(flag_50hz);
+
+					#ifdef SEND_CAN_ROLL_PITCH
+						publish_roll_pitch(sd.roll, sd.pitch);
+					#endif
+
+					#ifdef SEND_CAN_YAW_HEIGHT
+						publish_yaw_height_estimate(yaw_sensor_reading, height_estimator.height_estimated);
+					#endif
+
+					#ifdef SEND_CAN_VERT_VEL
+						publish_vert_velocity_estimate(height_estimator.vertical_velocity_estimated);
+					#endif
 
 					#ifdef SEND_HEIGHT_ESTIMATOR_TELEMETRY
 						h_est_telem_msg[0] = height_estimator.height_estimated;

@@ -146,14 +146,14 @@ void canMessageNotification(canBASE_t *node, uint32 messageBox)
 	{
 		canGetData(canREG3, canMESSAGE_BOX1, data_in);
 		get_sensor_msg(data_in, HEIGHT_HEADING_MSG);
-		board_led_toggle(LED1);
+		// board_led_toggle(LED1);
 	}
 
 	if(node == canREG3 && messageBox == canMESSAGE_BOX2)
 	{
 		canGetData(canREG3, canMESSAGE_BOX2, data_in);
 		get_sensor_msg(data_in, FLOW_MSG);
-		board_led_toggle(LED2);
+		// board_led_toggle(LED2);
 	}
 /* USER CODE END */
 }
