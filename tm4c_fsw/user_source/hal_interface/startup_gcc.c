@@ -35,6 +35,7 @@
 // 
 // This is part of revision 2.1.2.111 of the Tiva Firmware Development Package.
 //
+// Modified with code from https://github.com/spirilis/tiva1202/ to support Newlib operation
 //*****************************************************************************
 
 #include <stdint.h>
@@ -69,7 +70,8 @@ extern int main(void);
 // Reserve space for the system stack.
 //
 //*****************************************************************************
-static uint32_t pui32Stack[64];
+// static uint32_t pui32Stack[64];
+extern unsigned long _stack_top;
 
 //*****************************************************************************
 //
@@ -80,7 +82,8 @@ static uint32_t pui32Stack[64];
 __attribute__ ((section(".isr_vector")))
 void (* const g_pfnVectors[])(void) =
 {
-    (void (*)(void))((uint32_t)pui32Stack + sizeof(pui32Stack)),
+    // (void (*)(void))((uint32_t)pui32Stack + sizeof(pui32Stack)),
+    (void (*)(void))((uint32_t)&_stack_top),
                                             // The initial stack pointer
     ResetISR,                               // The reset handler
     NmiSR,                                  // The NMI handler
@@ -245,11 +248,21 @@ void (* const g_pfnVectors[])(void) =
 // for the "data" segment resides immediately following the "text" segment.
 //
 //*****************************************************************************
-extern uint32_t _ldata;
+// extern uint32_t _ldata;
+// extern uint32_t _data;
+// extern uint32_t _edata;
+// extern uint32_t _bss;
+// extern uint32_t _ebss;
+
+extern uint32_t _etext;
 extern uint32_t _data;
 extern uint32_t _edata;
 extern uint32_t _bss;
 extern uint32_t _ebss;
+extern void (*__preinit_array_start[])(void);
+extern void (*__preinit_array_end[])(void);
+extern void (*__init_array_start[])(void);
+extern void (*__init_array_end[])(void);
 
 //*****************************************************************************
 //
@@ -269,7 +282,7 @@ ResetISR(void)
     //
     // Copy the data segment initializers from flash to SRAM.
     //
-    pui32Src = &_ldata;
+    pui32Src = &_etext;
     for(pui32Dest = &_data; pui32Dest < &_edata; )
     {
         *pui32Dest++ = *pui32Src++;

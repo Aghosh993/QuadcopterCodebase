@@ -45,26 +45,25 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
 
 #include "hal_common_includes.h"
+
 #include "interrupt_utils.h"
-#include "serial_comms_highlevel.h"
+
 #include "mission_timekeeper.h"
+#include "serial_comms_highlevel.h"
 #include "sf10_reader.h"
+#include "bno055_reader.h"
+#include "system_shell.h"
 
 #define SERIAL_BUF_LEN  SERIAL_BUFFER_SIZE
 #define HELLO_WORLD_TEST    1
 
 volatile serialport uart5_port, uart6_port, uart7_port;
-volatile serialport *uart5_port_ptr;
-volatile serialport *uart6_port_ptr;
-volatile serialport *uart7_port_ptr;
 
 #if defined USE_CAN_ENCAP
     volatile serialport uart5_can_port, uart6_can_port, uart7_can_port;
-    volatile serialport *uart5_can_port_ptr;
-    volatile serialport *uart6_can_port_ptr;
-    volatile serialport *uart7_can_port_ptr;
 #endif
 
 //*****************************************************************************
@@ -90,12 +89,12 @@ void UART5IntHandler(void){
 
     if(ulStatus & UART_INT_TX)
     {
-        serialport_highlevel_tx_isr(uart5_port_ptr);
+        serialport_highlevel_tx_isr(&uart5_port);
     }
 
     if(ulStatus & UART_INT_RX)
     {
-        serialport_highlevel_rx_isr(uart5_port_ptr);
+        serialport_highlevel_rx_isr(&uart5_port);
     }
 }
 
@@ -110,12 +109,12 @@ void UART6IntHandler(void){
 
     if(ulStatus & UART_INT_TX)
     {
-        serialport_highlevel_tx_isr(uart6_port_ptr);
+        serialport_highlevel_tx_isr(&uart6_port);
     }
 
     if(ulStatus & UART_INT_RX)
     {
-        serialport_highlevel_rx_isr(uart6_port_ptr);
+        serialport_highlevel_rx_isr(&uart6_port);
     }
 }
 
@@ -130,12 +129,12 @@ void UART7IntHandler(void){
 
     if(ulStatus & UART_INT_TX)
     {
-        serialport_highlevel_tx_isr(uart7_port_ptr);
+        serialport_highlevel_tx_isr(&uart7_port);
     }
 
     if(ulStatus & UART_INT_RX)
     {
-        serialport_highlevel_rx_isr(uart7_port_ptr);
+        serialport_highlevel_rx_isr(&uart7_port);
     }
 }
 
@@ -201,7 +200,7 @@ void UART7IntHandler(void){
                  */
                 case 1:
                     CANMessageGet(CAN0_BASE, 1, &sMsgObjectRx, true); // If we ever get here, clear the interrupt through a dummy read.
-                    serialport_highlevel_tx_isr(uart7_can_port_ptr);
+                    serialport_highlevel_tx_isr(&uart7_can_port);
                     // if(serialport_tx_buf_empty(uart5_can_port_ptr))
                     // {
                     //     serialport_highlevel_tx_isr(uart5_can_port_ptr);
@@ -231,15 +230,15 @@ void UART7IntHandler(void){
                     break;
                 case 4:
                     CANIntClear(CAN0_BASE, 4);
-                    serialport_highlevel_rx_isr(uart5_can_port_ptr);
+                    serialport_highlevel_rx_isr(&uart5_can_port);
                     break;
                 case 5:
                     CANIntClear(CAN0_BASE, 5);
-                    serialport_highlevel_rx_isr(uart6_can_port_ptr);
+                    serialport_highlevel_rx_isr(&uart6_can_port);
                     break;
                 case 6:
                     CANIntClear(CAN0_BASE, 6);
-                    serialport_highlevel_rx_isr(uart7_can_port_ptr);
+                    serialport_highlevel_rx_isr(&uart7_can_port);
                     break;
                 default:
                     can_err_flag = 2U;
@@ -320,9 +319,6 @@ void UART7IntHandler(void){
         {
             while(1);
         }
-
-        // CANIntEnable(CAN0_BASE, CAN_INT_MASTER | CAN_INT_ERROR | CAN_INT_STATUS);
-        // IntEnable(INT_CAN0);
         
         CANEnable(CAN0_BASE);
 
@@ -330,8 +326,6 @@ void UART7IntHandler(void){
     }
 #endif
 
-static volatile uint32_t bytes_read;
-static volatile uint8_t msg_buf[10];
 static volatile sf10_sensor_data_handler sf10_handler;
 
 void Systick_Handler(void)
@@ -342,14 +336,7 @@ void Systick_Handler(void)
     /*
         Process SF11/C height sensor data:
      */
-    bytes_read = serialport_receive_data_buffer(uart6_port_ptr, msg_buf, 7);
-
-    uint32_t i = 0;
-
-    for(i=0; i<bytes_read; ++i)
-    {
-        sf10_reader_callback(&sf10_handler, msg_buf[i]);                
-    }
+    sf10_reader_process_bytes(&sf10_handler);
 }
 
 // Function to configure the system tick
@@ -395,6 +382,7 @@ void send_sensor_msg(float* msg_data, sensor_msg m)
 
     f32_2_to_uint8.input[0] = msg_data[0];
     f32_2_to_uint8.input[1] = msg_data[1];
+
     can_send_databuf(f32_2_to_uint8.output, 8, m);
 }
 
@@ -422,30 +410,17 @@ int main(void)
     #if defined USE_CAN_ENCAP
 
         serialport_init(&uart5_port, UART5);
-        uart5_port_ptr = &uart5_port;
 
         serialport_init(&uart6_port, UART6);
-        uart6_port_ptr = &uart6_port;
 
         serialport_init(&uart7_port, UART7);
-        uart7_port_ptr = &uart7_port;
 
         serialport_init(&uart5_can_port, CAN_ENCAP_UART5);
-        uart5_can_port_ptr = &uart5_can_port;
 
         serialport_init(&uart6_can_port, CAN_ENCAP_UART6);
-        uart6_can_port_ptr = &uart6_can_port;
 
         serialport_init(&uart7_can_port, CAN_ENCAP_UART7);
-        uart7_can_port_ptr = &uart7_can_port;
 
-    #endif
-
-    #if !defined USE_CAN_ENCAP
-        
-        sf10_hal_setup_ap2v4_tm4c_serial();
-        init_new_sf10_data_handler(&sf10_handler, 200U, MAX_HEIGHT_SF11_C, send_byte_to_sf10A);
-        uart6_port_ptr = &uart6_port;
     #endif
 
     enable_systick();
@@ -453,7 +428,13 @@ int main(void)
     _enable_interrupts();
 
     #if !defined USE_CAN_ENCAP
-        uint8_t sf10_20hz_trigger_flag = create_flag(49U);
+        init_new_sf10_data_handler(&sf10_handler, 200U, MAX_HEIGHT_SF11_C, &uart6_port, UART6);
+        timekeeper_delay(1000); // Allow the BNO055 sensor to initialize 
+        BNO055_init(&uart5_port, UART5);
+    #endif
+
+    #if !defined USE_CAN_ENCAP
+        uint8_t sf10_25hz_trigger_flag = create_flag(39U);
 
         float height_sensor_reading = 0.0f;
         int i = 0;
@@ -462,101 +443,109 @@ int main(void)
         height_heading_telem[1] = 0.0f;
     #endif
 
-    timekeeper_delay(5000); // Allow the sensor to initialize
-    // request_sf10_sensor_update(&sf10_handler);
+    #if defined ENABLE_SYSTEM_SHELL
+        setup_system_shell();
+        while(1)
+        {
+            shell_run();
+        }
+    #endif
+
+    #if defined BNO055_PASSTHRU_TEST
+
+        // BNO055 Passthru test, linking UART5 and UART7:
+
+        char recvbuf[50];
+        uint32_t recv_bytes;
+
+        serialport_init(&uart5_port, UART5);
+        serialport_init(&uart7_port, UART7);
+
+        printf("Hello!!\r\n");
+
+        while(1)
+        {
+            recv_bytes = serialport_receive_data_buffer(&uart5_port, recvbuf, 50);
+            if(recv_bytes > 0)
+            {
+                serialport_send_data_buffer(&uart7_port, recvbuf, recv_bytes);
+            }
+
+            recv_bytes = serialport_receive_data_buffer(&uart7_port, recvbuf, 50);
+            if(recv_bytes > 0)
+            {
+                serialport_send_data_buffer(&uart5_port, recvbuf, recv_bytes);
+            }
+        }
+
+    #endif
+
+    #if defined BNO055_BLOCKING_READ_TEST
+
+        // Blocking-mode BNO055 read test:
+
+        char recvbuf[50];
+        uint32_t recv_bytes;
+
+        serialport_init(&uart5_port, UART5);
+        serialport_init(&uart7_port, UART7);
+
+        uint8_t bno_init1[5] = {0xAA, 0x00, 0x3d, 0x01, 0x00};
+        uint8_t bno_init2[5] = {0xAA, 0x00, 0x3d, 0x01, 0x0C};
+        uint8_t bno_read_req[4] = {0xAA, 0x01, 0x14, 20U};
+        printf("Starting...\r\n");
+
+        serialport_send_data_buffer_blocking(&uart5_port, bno_init1, 5);
+        serialport_receive_data_buffer_blocking(&uart5_port, bno_init1, 2);
+        serialport_send_data_buffer_blocking(&uart5_port, bno_init2, 5);
+        serialport_receive_data_buffer_blocking(&uart5_port, bno_init2, 2);
+        union {
+            uint8_t input[2];
+            int16_t output;
+        } conv_to_i16;
+
+        while(1)
+        {
+            serialport_send_data_buffer_blocking(&uart5_port, bno_read_req, 4);
+            serialport_receive_data_buffer_blocking(&uart5_port, recvbuf, 2);
+            if(recvbuf[0] == 0xBB)
+            {
+                recv_bytes = recvbuf[1];
+                serialport_receive_data_buffer_blocking(&uart5_port, recvbuf, recv_bytes);
+                conv_to_i16.input[0] = recvbuf[6];
+                conv_to_i16.input[1] = recvbuf[7];
+                printf("Got data %f\r\n", (float)conv_to_i16.output/(float)16);
+            }
+        }
+    #endif
+
+    BNO055_trigger_get_data();
 
     while(1)
     {
         #if !defined USE_CAN_ENCAP
-            if(get_flag_state(sf10_20hz_trigger_flag) == STATE_PENDING)
+            /*
+                Process BNO055 sensor data:
+            */
+            BNO055_recv_callback();
+
+            if(get_flag_state(sf10_25hz_trigger_flag) == STATE_PENDING)
             {
-                reset_flag(sf10_20hz_trigger_flag);
+                reset_flag(sf10_25hz_trigger_flag);
                 send_sensor_msg(height_heading_telem, HEIGHT_HEADING_MSG);
                 request_sf10_sensor_update(&sf10_handler);
+                BNO055_trigger_get_data();
             }
-            
 
             if(sf10_received_new_data(&sf10_handler))
             {
-                height_sensor_reading = get_last_sf10_sensor_height(&sf10_handler);
-                height_heading_telem[0] = height_sensor_reading;
-                height_heading_telem[1] = 0.0f;
+                height_heading_telem[0] = get_last_sf10_sensor_height(&sf10_handler);
+            }
+
+            if(BNO055_received_new_data())
+            {
+                height_heading_telem[1] = BNO055_get_heading();
             }
         #endif
-        // if(can_err_flag > 0U)
-        // {
-        //     _disable_interrupts();
-        //     while(1)
-        //     {
-        //         UARTCharPut(UART7_BASE, 'e');
-        //     }
-        // }
-
-        /*
-            Process pending CAN transmissions in a round-robbin fashion.
-            If a given "channel" has no bytes in buffer, it'll just return immediately and yield to this "executive"...
-         */
-
-        // if(CANStatusGet(CAN0_BASE, CAN_STS_TXREQUEST)==0) // If no TX messages are pending, go ahead and transmit whatever is on the buffers
-        // {
-        //     switch(can_channel)
-        //     {
-        //         case 1U:
-        //             serialport_highlevel_tx_isr(uart5_can_port_ptr);
-        //             ++can_channel;
-        //             break;
-        //         case 2U:
-        //             serialport_highlevel_tx_isr(uart6_can_port_ptr);
-        //             ++can_channel;
-        //             break;
-        //         case 3U:
-        //             serialport_highlevel_tx_isr(uart7_can_port_ptr);
-        //             can_channel = 1U;
-        //             break;
-        //     }
-        // }
-        /*
-            Forwarding relationships from actual UARTs on TM4C to CAN bus:
-            In all cases below, we attempt to read SERIAL_BUF_LEN number of bytes into "buf", in an asynchronous fashion.
-         */
-        // bytes_recv = serialport_receive_data_buffer(uart5_port_ptr, buf, SERIAL_BUF_LEN);
-        // if(bytes_recv > 0U)
-        // {
-        //     serialport_send_data_buffer(uart5_can_port_ptr, buf, bytes_recv);
-        // }
-
-        // bytes_recv = serialport_receive_data_buffer(uart6_port_ptr, buf, SERIAL_BUF_LEN);
-        // if(bytes_recv > 0U)
-        // {
-        //     serialport_send_data_buffer(uart6_can_port_ptr, buf, bytes_recv);
-        // }
-
-        // bytes_recv = serialport_receive_data_buffer(uart7_port_ptr, buf, SERIAL_BUF_LEN);
-        // if(bytes_recv > 0U)
-        // {
-        //     serialport_send_data_buffer(uart7_port_ptr, buf, bytes_recv);
-        // }
-
-        /*
-            Forwarding relationships from CAN bus to actual UARTs on TM4C:
-            In all cases below, we attempt to read SERIAL_BUF_LEN number of bytes into "buf", in an asynchronous fashion.
-         */
-        // bytes_recv = serialport_receive_data_buffer(uart5_can_port_ptr, buf, SERIAL_BUF_LEN);
-        // if(bytes_recv > 0U)
-        // {
-        //     serialport_send_data_buffer(uart5_port_ptr, buf, bytes_recv);
-        // }
-
-        // bytes_recv = serialport_receive_data_buffer(uart6_can_port_ptr, buf, SERIAL_BUF_LEN);
-        // if(bytes_recv > 0U)
-        // {
-        //     serialport_send_data_buffer(uart6_port_ptr, buf, bytes_recv);
-        // }
-
-        // bytes_recv = serialport_receive_data_buffer(uart7_can_port_ptr, buf, SERIAL_BUF_LEN);
-        // if(bytes_recv > 0U)
-        // {
-        //     serialport_send_data_buffer(uart7_port_ptr, buf, bytes_recv);
-        // }
     }
 }

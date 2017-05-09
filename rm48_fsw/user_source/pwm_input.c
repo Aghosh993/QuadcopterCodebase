@@ -26,20 +26,35 @@ static uint8_t rc_duty_isNearNominalLimit(uint32_t pulseLength, uint32_t nominal
 	return 0;
 }
 
-void init_rc_inputs(rc_joystick_data_struct* js)
+void init_rc_inputs(rc_joystick_data_struct* js, int calibrate)
 {
-	board_led_on(CAL_SUCCESS_LED);
-	board_led_on(ERROR_LED);
-
 	pwm_input_init();
 	#ifdef PROVIDE_LED_USER_FEEDBACK
-		// setup_user_feedback_gpios();
+		board_led_on(CAL_SUCCESS_LED);
+		board_led_on(ERROR_LED);
 	#endif
-	do_rc_channel_callibration(js, ROLL_CHANNEL);
-	do_rc_channel_callibration(js, PITCH_CHANNEL);
-	do_rc_channel_callibration(js, YAW_CHANNEL);
-	do_rc_channel_callibration(js, VERTICAL_CHANNEL);
-	do_rc_channel_callibration(js, CHANNEL5_MODE_SWITCH);
+
+	if(calibrate)
+	{
+		do_rc_channel_callibration(js, ROLL_CHANNEL);
+		do_rc_channel_callibration(js, PITCH_CHANNEL);
+		do_rc_channel_callibration(js, YAW_CHANNEL);
+		do_rc_channel_callibration(js, VERTICAL_CHANNEL);
+		do_rc_channel_callibration(js, CHANNEL5_MODE_SWITCH);
+	}
+	else
+	{
+		js->roll_channel_duty_low = 821;
+		js->roll_channel_duty_high = 1469;
+		js->pitch_channel_duty_low = 832;
+		js->pitch_channel_duty_high = 1455;
+		js->yaw_channel_duty_low = 820;
+		js->yaw_channel_duty_high = 1460;
+		js->vertical_channel_duty_low = 821;
+		js->vertical_channel_duty_high = 1471;
+		js->mode_switch_channel_duty_low = 821;
+		js->mode_switch_channel_duty_high = 1472;
+	}
 
 	js->roll_channel_value = 0.0f;
 	js->pitch_channel_value = 0.0f;

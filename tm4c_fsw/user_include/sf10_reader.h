@@ -11,7 +11,9 @@
 #include <stdint.h>
 #include <math.h>
 
-#include "sf10_hal_ap2v4_tm4c.h"
+// #include "sf10_hal_ap2v4_tm4c.h"
+#include "mission_timekeeper.h"
+#include "serial_comms_highlevel.h"
 
 #define MESSAGE_BUFFER_MAX_LEN 	7
 #define MAX_HEIGHT_SF10_A		25.00f
@@ -48,24 +50,19 @@ typedef struct
 	float max_height_possible;
 
 	resource_allocator_enum height_variable_lock;
-	void (*uart_tx_function_ptr)(uint8_t);
+	// void (*uart_tx_function_ptr)(uint8_t);
+	serialport *sensor_port;
 
 	int _received_new_data;
 } sf10_sensor_data_handler;
 
 
-void init_new_sf10_data_handler(sf10_sensor_data_handler *dst, uint8_t timeout_limit, float max_height_possible, void* uart_tx_func_pointer);
-void sf10_reader_callback(sf10_sensor_data_handler *dh, uint8_t c);
+void init_new_sf10_data_handler(sf10_sensor_data_handler *dst, uint8_t timeout_limit, float max_height_possible, serialport *port, serialport_desc hw_desc);
 void request_sf10_sensor_update(sf10_sensor_data_handler *dh);
 float get_last_sf10_sensor_height(sf10_sensor_data_handler *dh);
 float get_last_sf10_timestamp(sf10_sensor_data_handler *dh);
 int sf10_received_new_data(sf10_sensor_data_handler *dh); // returns 1 if new data received since last call to this function, returns 0 otherwise
 float sf10_reader_check_measurement(float raw_data);
-
-/*
- * (Internal) Helper functions:
- */
-static uint8_t find_decimal_place(uint8_t buffer[MESSAGE_BUFFER_MAX_LEN]);
-static float powers_of_ten(int place);
+void sf10_reader_process_bytes(sf10_sensor_data_handler *dh);
 
 #endif /* SF10_READER_H_ */

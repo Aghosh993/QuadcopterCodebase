@@ -1,9 +1,11 @@
 #ifndef BNO055_H
 #define BNO055_H 1
 
+#include <stdint.h>
+
 #include "hal_common_includes.h"
 #include "serial_comms_highlevel.h"
-#include "interrupt_utils.h"
+#include "mission_timekeeper.h"
 
 /* BNO055 UART protocol
 
@@ -61,6 +63,7 @@
 #define ACK_WRITE_SUCCESS	0x01
 
 #define MAX_BYTES			0x80 // 128 Bytes
+#define BNO_RECV_BUFFER_LEN		20U
 
 typedef struct
 {
@@ -78,7 +81,7 @@ typedef struct
 	float quaternion_z;
 
   float timestamp;
-} imu_data;
+} bno055_data;
 
 enum write_ack_response
 {
@@ -123,20 +126,12 @@ enum BNO055_operations
 	WRITE_REGISTER
 };
 
-void BNO055_init(void);
-
-void BNO055_write_single_register(uint8_t register_address, uint8_t data);
-void BNO055_write_register(uint8_t register_address, uint8_t length, uint8_t *data);
-void BNO055_read_single_register(uint8_t register_address);
-void BNO055_read_register(uint8_t register_address, uint8_t length);
-
-void BNO055_interrupt_handler(uint8_t byte);
-
-void BNO055_get_euler_angles(float *angles);
+void BNO055_init(serialport *port, serialport_desc hw_desc);
+void BNO055_recv_callback(void);
 void BNO055_trigger_get_data(void);
-
 int BNO055_received_new_data();
-
-void BNO055_get_imu_data(imu_data *data);
+void BNO055_get_imu_data(bno055_data *data);
+void BNO055_process_buffer(void);
+float BNO055_get_heading(void);
 
 #endif

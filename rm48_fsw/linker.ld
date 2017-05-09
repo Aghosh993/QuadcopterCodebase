@@ -12,6 +12,7 @@ _estack = 0x8040000;    /* end of 256K RAM */
 
 /* Generate a link error if heap and stack don't fit into RAM */
 _Min_Heap_Size = 0x400;      /* required amount of heap  */
+_stack_size = 20K;
 
 /* Specify the memory areas */
 MEMORY
@@ -141,4 +142,9 @@ SECTIONS
   }
   
   .ARM.attributes 0 : { *(.ARM.attributes) }
+
+  _heap_bottom = ALIGN(8);
+  _heap_top = ORIGIN(RAM) + LENGTH(RAM) - _stack_size;
+  _stack_bottom = ALIGN(8);
+  _stack_top = ORIGIN(CPU_STACK) + LENGTH(CPU_STACK);
 }

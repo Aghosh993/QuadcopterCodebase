@@ -16,6 +16,8 @@ void cpu_init(void)
 	 */
 	systemInit();
 	
+	// _coreEnableVfp_(); // HardFP doesn't work for some reason...
+
 	/*
 		Pinmux setup:
 	 */

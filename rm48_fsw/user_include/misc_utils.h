@@ -13,6 +13,6 @@
 
 void insert_delay(int ms);
 void blocking_sci_SendData(uint8_t *dataptr, uint8_t len);
-void esc_cal(void);
+void esc_cal(int motor);
 
 #endif

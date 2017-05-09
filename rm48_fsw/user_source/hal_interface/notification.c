@@ -63,6 +63,7 @@
 #include "interrupts.h"
 
 #include "board_led.h"
+#include "can_comms.h"
 
 /* USER CODE BEGIN (0) */
 /* USER CODE END */
@@ -139,19 +140,23 @@ void canMessageNotification(canBASE_t *node, uint32 messageBox)
 {
 /*  enter user code between the USER CODE BEGIN and USER CODE END. */
 /* USER CODE BEGIN (15) */
+	uint8_t data_in[8];
+
 	if(node == canREG3 && messageBox == canMESSAGE_BOX1)
 	{
-		can_tm4c_port1_rx_message_callback();
+		canGetData(canREG3, canMESSAGE_BOX1, data_in);
+		get_sensor_msg(data_in, HEIGHT_HEADING_MSG);
 	}
 
 	if(node == canREG3 && messageBox == canMESSAGE_BOX2)
 	{
-		can_tm4c_port2_rx_message_callback();
+		canGetData(canREG3, canMESSAGE_BOX2, data_in);
+		get_sensor_msg(data_in, FLOW_MSG);
 	}
 
 	if(node == canREG3 && messageBox == canMESSAGE_BOX3)
 	{
-		can_tm4c_port3_rx_message_callback();
+		canGetData(canREG3, canMESSAGE_BOX3, data_in);
 	}
 /* USER CODE END */
 }

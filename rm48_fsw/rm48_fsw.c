@@ -15,8 +15,13 @@
 #include "telem_config.h"
 #include "vehicle_gnc.h"
 #include "serial_comms_highlevel.h"
-#include "sf10_reader.h"
-#include "bno055_reader.h"
+#include "can_comms.h"
+#include "cpu_hal_interface.h"
+#include "system_shell.h"	
+
+#include <stdint.h>
+#include <stdio.h>
+#include <string.h>
 
 /*
 	Quadcopter primary flight software file.
@@ -34,28 +39,6 @@
 	(c) 2016, Abhimanyu Ghosh
  */
 
-/*
-	Central define that enables or disables the operation of motors under any circumstance.
-	Uncomment this if you want the motors to be able to rotate:
- */
-// #define ENABLE_MOTORS		1
-/*
-	Disable main program loop and run the ESC PWM channels through a pre-determined sequence to
-	calibrate them:
- */
-// #define ESC_CAL_MODE	1
-/* 
-	Disable main program loop and run an infinite loop emitting telemetry packets
-	at about 50 Hz for test purposes:
- */
-// #define TEST_TELEM			1
-
-/*
-	Uncomment the following to enable the RC calibration and arming sequence, and 
-	subsequent control of vehicle using the RC controller:
- */
-// #define ENABLE_RC_CONTROL 	1
-
 /* USER CODE END */
 
 /*
@@ -63,73 +46,214 @@
 	handlers in interrupts.c:
  */
 
-serialport ftdi_dbg_port, tm4c_comms_aux_port;
-serialport *ftdi_dbg_port_ptr;
-serialport *tm4c_comms_aux_port_ptr;
+volatile serialport ftdi_dbg_port;
+volatile rt_telemetry_comm_channel telem0;
 
-serialport tm4c_port1, tm4c_port2, tm4c_port3;
-serialport *tm4c_port1_ptr;
-serialport *tm4c_port2_ptr;
-serialport *tm4c_port3_ptr;
+volatile float roll_rate_cmd, pitch_rate_cmd, yaw_rate_cmd;
+volatile float throttle_value_common;
 
-rt_telemetry_comm_channel telem0;
+volatile uint8_t gnc_innerloop_flag;
 
-float roll_rate_cmd, pitch_rate_cmd, yaw_rate_cmd;
-float throttle_value_common;
+volatile rc_joystick_data_struct rc_data;
 
-uint8_t gnc_innerloop_flag;
+volatile uint8_t flag_1hz;
+volatile uint8_t flag_10hz;
+volatile uint8_t flag_20hz;
+volatile uint8_t flag_50hz;
+volatile uint8_t flag_200hz;
+volatile uint8_t flag_1000hz;
 
-int main(void)
+/*
+  Apps defined for the various commands:
+ */
+
+void shell_clear(int argc, char** argv)
 {
-/* USER CODE BEGIN (3) */
+  clear_buffer();
+}
 
-	/*Globally disable R4 IRQs AND FIQs:*/
-	_disable_interrupts();
+void ledcontrol(int argc, char** argv)
+{
+  led l = LED1;
 
-	cpu_init();
+  if(argc < 2)
+  {
+    printf("Usage: led_ctl [led1/led2] [on/off]\r\n");
+  }
+  else
+  {
+    if(strncmp(argv[0], "led1", 4) == 0)
+    {
+      l = LED1;
+    }
+    else
+    {
+      if(strncmp(argv[0], "led2", 4) == 0)
+      {
+        l = LED2;
+      }
+      else
+      {
+        printf("INVALID LED selected\r\n");
+      }
+    }
+    if(strncmp(argv[1], "on", 3) == 0)
+    {
+      board_led_on(l);
+    }
+    if(strncmp(argv[1], "off", 3) == 0)
+    {
+      board_led_off(l);
+    }
+  }
+}
 
-	while(1);
+void motorcontrol(int argc, char** argv)
+{
+	// Initialize PWM channels for 4 motors and set all motors to stop by default:
+	QuadRotor_PWM_init();
 
-	board_led_init(); // Initialize the MibSPI in GPIO mode to be able to use system LEDs on interface board.
+	float pwr = 0.0f;
 
-	// Initialize all configured serial ports, including HAL subsystems + data structs for asynch tx/rx:
+	if(argc < 2)
+	{
+		printf("Usage: setmotor [1/2/3/4/all] [pwr] with pwr a float from 0-1\r\n");
+	}
+	else
+	{
+		if(strncmp(argv[1], "off", 3) == 0)
+		{
+			pwr = 0.0f;
+		}
+		else
+		{
+			sscanf(argv[1], "%f", &pwr);
 
-	ftdi_dbg_port_ptr = &ftdi_dbg_port;
-	tm4c_comms_aux_port_ptr = &tm4c_comms_aux_port;
+			if(pwr > 0.0f && pwr < 1.0f)
+			{
+				printf("\r\nSetting motor value %.2f\r\n", pwr);
+			}
+			else
+			{
+				printf("ERROR, power value (arg 2) out of range!! Must be in range [0.0, 1.0]\r\n");
+				return;
+			}
+		}
+		
+		if(strncmp(argv[0], "1", 1) == 0)
+		{
+			if(!is_setup(1))
+			{
+				QuadRotor_motor1_start();
+				QuadRotor_motor1_setDuty(0.0f);
+				timekeeper_delay(1000U);
+			}
+			QuadRotor_motor1_setDuty(pwr);
+		}
+		else if(strncmp(argv[0], "2", 1) == 0)
+		{
+			if(!is_setup(2))
+			{
+				QuadRotor_motor2_start();
+				QuadRotor_motor2_setDuty(0.0f);
+				timekeeper_delay(1000U);
+			}
+			QuadRotor_motor2_setDuty(pwr);
+		}
+		else if(strncmp(argv[0], "3", 1) == 0)
+		{
+			if(!is_setup(3))
+			{
+				QuadRotor_motor3_start();
+				QuadRotor_motor3_setDuty(0.0f);
+				timekeeper_delay(1000U);
+			}
+			QuadRotor_motor3_setDuty(pwr);			
+		}
+		else if(strncmp(argv[0], "4", 1) == 0)
+		{
+			if(!is_setup(4))
+			{
+				QuadRotor_motor4_start();
+				QuadRotor_motor4_setDuty(0.0f);
+				timekeeper_delay(1000U);
+			}
+			QuadRotor_motor4_setDuty(pwr);			
+		}
+		else if(strncmp(argv[0], "all", 3) == 0)
+		{
+			if(!is_setup(1))
+			{
+				QuadRotor_motor1_start();
+				QuadRotor_motor1_setDuty(0.0f);
+				timekeeper_delay(1000U);
+			}
+			if(!is_setup(2))
+			{
+				QuadRotor_motor2_start();
+				QuadRotor_motor2_setDuty(0.0f);
+				timekeeper_delay(1000U);
+			}
+			if(!is_setup(3))
+			{
+				QuadRotor_motor3_start();
+				QuadRotor_motor3_setDuty(0.0f);
+				timekeeper_delay(1000U);
+			}
+			if(!is_setup(4))
+			{
+				QuadRotor_motor4_start();
+				QuadRotor_motor4_setDuty(0.0f);
+				timekeeper_delay(1000U);
+			}
+			QuadRotor_motor1_setDuty(pwr);
+			QuadRotor_motor2_setDuty(pwr);
+			QuadRotor_motor3_setDuty(pwr);
+			QuadRotor_motor4_setDuty(pwr);			
+		}
+		else
+		{
+			printf("ERROR, invalid motor selection!! Valid options: 1, 2, 3, 4 or all\r\n");
+		}
+	}
+	printf("\r\n...done\r\n");
+}
 
-	tm4c_port1_ptr = &tm4c_port1;
-	tm4c_port2_ptr = &tm4c_port2;
-	tm4c_port3_ptr = &tm4c_port3;
+void calibrate_esc(int argc, char** argv)
+{
+	_enable_interrupts();
+	if(argc == 1)
+	{
+		if(strncmp(argv[0], "1", 1) == 0)
+		{
+			esc_cal(1);
+		}
+		else if(strncmp(argv[0], "2", 1) == 0)
+		{
+			esc_cal(2);
+		}
+		else if(strncmp(argv[0], "3", 1) == 0)
+		{
+			esc_cal(3);			
+		}
+		else if(strncmp(argv[0], "4", 1) == 0)
+		{
+			esc_cal(4);			
+		}
+		else
+		{
+			printf("ERROR: Out-of-bounds range of motor number!! Valid numbers: 1-4\r\n");
+		}
+	}
+	else
+	{
+		printf("Usage: esc_cal [1/2/3/4]");
+	}
+}
 
-	serialport_init(ftdi_dbg_port_ptr, PORT1);
-
-	// Uses TM4C UART port (virtual UART subsystem) #1:
-	sf10_sensor_data_handler sf10_handler;
-	sf10_hal_setup_ap2v4_serial();
-	init_new_sf10_data_handler(&sf10_handler, 200U, MAX_HEIGHT_SF11_C, send_byte_to_sf10A);
-
-	serialport_init(tm4c_port2_ptr, TM4C_PORT2);
-	serialport_init(tm4c_port3_ptr, TM4C_PORT3);
-
-	rt_telemetry_init_channel(&telem0, ftdi_dbg_port_ptr);
-
-	#ifdef ESC_CAL_MODE
-		init_mission_timekeeper();
-		_enable_interrupts();
-		board_led_on(LED1);
-		board_led_off(LED2);
-		esc_cal();
-	#endif
-
-	/*
-		If ESC Calibration mode above is enabled, the program will never get here, so all subsequent procedures are irrelevant.
-	 */
-
-	/*
-	* Initialize the serial port (SCI module) and enable SCI Receive interrupts:
-	* (Explanation: mibSPI peripheral must be initialized as well since SCI requires mibSPI pins)
-	*/	
-	
+void flight_app(int argc, char** argv)
+{
+	// Initialize PWM channels for 4 motors and set all motors to stop by default:
 	QuadRotor_PWM_init();
 	QuadRotor_motor1_start();
 	QuadRotor_motor2_start();
@@ -144,13 +268,11 @@ int main(void)
 	QuadRotor_motor3_setDuty(0.0f);
 	QuadRotor_motor4_setDuty(0.0f);
 
-	/*
-		Initialize the PWM input functionality. Technically this just makes a duplicate call to hetInit and zeroes the
-		edge counter that's used for LOS (Loss of Signal) detection functionality.
-	 */
-	pwm_input_init();
+	serialport_hal_init();
+	serialport_init(&ftdi_dbg_port, PORT1);
+	rt_telemetry_init_channel(&telem0, &ftdi_dbg_port);
 
-	init_mission_timekeeper();
+	_enable_interrupts();
 
 	float roll_cmd, pitch_cmd, yaw_cmd;
 
@@ -169,16 +291,7 @@ int main(void)
 
 	gnc_innerloop_flag = 0U;
 
-	_enable_interrupts();
-
 	float imudata_telemetry_output[7];
-
-	uint8_t telemetry_gnc_200hz_flag = create_flag(4U);
-	uint8_t sf10_20hz_trigger_flag = create_flag(49U);
-	uint8_t rc_update_50hz_flag = create_flag(19U);
-	uint8_t imu_sample_1000hz_flag = create_flag(0U);
-	uint8_t rc_watchdog_10hz_flag = create_flag(99U);
-	uint8_t heartbeat_1hz_flag = create_flag(999U);
 
 	board_led_on(LED1);
 	board_led_off(LED2);
@@ -245,11 +358,8 @@ int main(void)
 		}
 	#endif
 
-	rc_joystick_data_struct rc_data;
-	#ifdef ENABLE_RC_CONTROL
-		init_rc_inputs(&rc_data);
-	#endif
-
+	init_rc_inputs(&rc_data, 0);
+	
 	float roll_rate_cmd_local, pitch_rate_cmd_local, yaw_rate_cmd_local, throttle_value_common_local;
 	roll_rate_cmd_local = 0.0f;
 	pitch_rate_cmd_local = 0.0f;
@@ -267,89 +377,35 @@ int main(void)
 	float height_closedloop_throttle_cmd = 0.0f;
 	float max_height_cmd = 2.0f;
 
-	float h_est_telem_msg[8] = {0.0f};
-	// h_est_telem_msg[0] = 0.0f;
-	// h_est_telem_msg[1] = 0.0f;
-	// h_est_telem_msg[2] = 0.0f;
+	float h_est_telem_msg[8] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
 
 	float heading_sensor_reading = 0.0f;
 
 	uint8_t bno_bytes_read = 0U;
 	int bno_bytes_total = 0U;
 
-	// BNO055_init();
-
-	serialport_send_data_buffer(tm4c_port3_ptr, (uint8_t *)"Hello UART7!!\r\n", 15U);
-
 	while(1)
 	{
-		#ifdef ENABLE_MOTORS
-			gnc_enable();
-		#else
-			gnc_disable();
-		#endif
-		/*
-			Asynchronous events (primarily serial communications using encapsulation driver subsystem):
-		 */
-
-		/*
-			Process SF11/C height sensor data:
-		 */
-		// bytes_read = serialport_receive_data_buffer(tm4c_port2_ptr, msg_buf, 10);
-
-		// for(i=0; i<bytes_read; ++i)
-		// {
-		// 	sf10_reader_callback(&sf10_handler, msg_buf[i]);				
-		// }
-
-		// if(sf10_received_new_data(&sf10_handler))
-		// {
-		// 	// float height_sensor_reading_raw = get_last_sf10_sensor_height(&sf10_handler);
-		// 	// height_sensor_reading = sf10_reader_check_measurement(height_sensor_reading_raw);
-
-		// 	height_sensor_reading = get_last_sf10_sensor_height(&sf10_handler);
-		// }
-
-		/*
-			Process BNO055 Heading sensor data:
-		 */
-
-		// bno_bytes_read = serialport_receive_data_buffer(tm4c_port2_ptr, msg_buf, 30U);
-
-		// for(i=0; i<bno_bytes_read; ++i)
-		// {
-		// 	BNO055_interrupt_handler(msg_buf[i]);
-		// }
-
-		// if(BNO055_received_new_data())
-		// {
-		// 	imu_data bno055_reading;
-		// 	BNO055_get_imu_data(&bno055_reading);
-		// 	heading_sensor_reading = bno055_reading.heading;
-		// 	bno_bytes_total += 1;
-		// }
-
-		///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
+		gnc_enable();
 		/*
 			Synchronous (i.e. cyclic) events scheduled by timer (RTI or PWM) subsystem:
 		 */
 
-		if(get_flag_state(heartbeat_1hz_flag) == STATE_PENDING)
+		if(get_flag_state(flag_1000hz) == STATE_PENDING)
 		{
-			reset_flag(heartbeat_1hz_flag);
-			board_led_toggle(LED2); // Toggle green LED on interface board as heartbeat
-		}
+			reset_flag(flag_1000hz);
 
-		if(get_flag_state(imu_sample_1000hz_flag) == STATE_PENDING)
-		{
-			// board_led_toggle(LED1);
-			reset_flag(imu_sample_1000hz_flag);
-
-			if(get_flag_state(rc_watchdog_10hz_flag) == STATE_PENDING)
+			if(get_flag_state(flag_1hz) == STATE_PENDING)
 			{
-				reset_flag(rc_watchdog_10hz_flag);				
+				reset_flag(flag_1hz);
+				board_led_toggle(LED2); // Toggle green LED on interface board as heartbeat
+			}
+
+			if(get_flag_state(flag_10hz) == STATE_PENDING)
+			{
+				reset_flag(flag_10hz);				
 				rc_input_validity_watchdog_callback(); // Check if sufficient number of RC rising edges have occurred in last 100 ms
+				_disable_interrupts();
 			}
 			
 			/* 
@@ -372,12 +428,12 @@ int main(void)
 			sensor_data[4] = rd.pitch_gyro;
 			sensor_data[5] = rd.yaw_gyro;
 			
-			if(get_flag_state(telemetry_gnc_200hz_flag) == STATE_PENDING)
+			if(get_flag_state(flag_200hz) == STATE_PENDING)
 			{
 				// Reset flag for next cycle:				
-				reset_flag(telemetry_gnc_200hz_flag);
+				reset_flag(flag_200hz);
 
-				// board_led_toggle(LED1);
+				board_led_toggle(LED1);
 
 				// Send telemetry items as configured:
 				#ifdef SEND_MPU_IMU_TELEMETRY
@@ -389,8 +445,6 @@ int main(void)
 
 				// Run height estimation Kalman filter:
 				gnc_height_kalman_update(&height_estimator, height_sensor_reading, gnc_get_vertical_dynamic_acceleration(), sd.roll, sd.pitch);
-
-				// send_telem_msg_n_floats_blocking(&telem0, (uint8_t *)"h_est", 5, &(height_estimator.height_estimated), 1);
 
 				// // Obtain new height throttle command:
 				height_closedloop_throttle_cmd = gnc_get_height_controller_throttle_command(throttle_value_common_local*max_height_cmd, 
@@ -418,23 +472,21 @@ int main(void)
 				send_telem_msg_n_floats_blocking(&telem0, (uint8_t *)"cmds", 4, motor_vals, 4);
 				#endif
 
-				if(get_flag_state(sf10_20hz_trigger_flag) == STATE_PENDING)
+				if(get_flag_state(flag_20hz) == STATE_PENDING)
 				{
-					reset_flag(sf10_20hz_trigger_flag);
+					reset_flag(flag_20hz);
 
 					#ifdef SEND_HEIGHT_SENSOR_TELEMETRY
 						send_telem_msg_n_floats_blocking(&telem0, (uint8_t *)"sf11c", 5, &height_sensor_reading, 1);
 					#endif
 					
 					board_led_toggle(LED1);
-					// request_sf10_sensor_update(&sf10_handler);
+					height_sensor_reading = get_last_can_height_msg();
 				}
 				
-				if(get_flag_state(rc_update_50hz_flag) == STATE_PENDING)
+				if(get_flag_state(flag_50hz) == STATE_PENDING)
 				{
-					reset_flag(rc_update_50hz_flag);
-
-					// BNO055_trigger_get_data();
+					reset_flag(flag_50hz);
 
 					#ifdef SEND_HEIGHT_ESTIMATOR_TELEMETRY
 						h_est_telem_msg[0] = height_estimator.height_estimated;
@@ -455,15 +507,13 @@ int main(void)
 					#ifdef SEND_BNO_SERIAL_STATS_TELEMETRY
 						send_telem_msg_n_ints_blocking(&telem0, (uint8_t *)"bno_tot", 7, &bno_bytes_total, 1);
 					#endif
-
-					#ifdef ENABLE_RC_CONTROL
 						// Get RC Joystick data from last reception:
 
 						get_rc_input_values(&rc_data);
 
 						if(get_ch5_mode(rc_data)==MODE_FAILSAFE)
 						{
-							gnc_integral_enable();
+							gnc_integral_disable();
 							set_controller_mode(MODE_ANGULAR_POSITION_CONTROL);
 						}
 						else
@@ -496,15 +546,6 @@ int main(void)
 						}
 						else
 						{
-							/*
-								Emergency-stop all motors upon loss of signal. In the future this may become something a bit more graceful...
-							 */
-							#ifdef SEND_RC_INPUT_TELEMETRY
-								send_telem_msg_string_blocking(&telem0, (uint8_t *)"rcvalid", 7, "FALSE\r\n", 7);
-							#endif
-							
-							insert_delay(100);
-							_disable_interrupts();
 							QuadRotor_motor1_setDuty(0.0f);
 							QuadRotor_motor2_setDuty(0.0f);
 							QuadRotor_motor3_setDuty(0.0f);
@@ -516,21 +557,81 @@ int main(void)
 							QuadRotor_motor4_stop();
 							board_led_on(LED1); 	// Red ERROR LED = ON
 							board_led_off(LED2); 	// Green OK LED = OFF
-							while(1); 				// Block here indefinitely pending system power-off/reset by user
+							printf("Exiting due to LOS...\r\n");
+							return;
 						}
-					#else
-						roll_cmd = 0.0f;
-						pitch_cmd = 0.0f;
-						yaw_cmd = 0.0f;
-						throttle_value_common_local = 0.0f;
-					#endif
 				}
+				/*
+					Emergency-stop all motors upon loss of signal. In the future this may become something a bit more graceful...
+				 */
+				#ifdef SEND_RC_INPUT_TELEMETRY
+					send_telem_msg_string_blocking(&telem0, (uint8_t *)"rcvalid", 7, "FALSE\r\n", 7);
+				#endif
 			}
 		}
 	}
 /* USER CODE END */
 }
 
-/* USER CODE BEGIN (4) */
-/* USER CODE END */
-	
+
+void main(void)
+{
+	/*Globally disable R4 IRQs AND FIQs:*/
+	_disable_interrupts();
+
+	cpu_init();
+
+	// Initialize the MibSPI in GPIO mode to be able to use system LEDs on interface board:
+	board_led_init();
+
+	// Set up timing flags for timed tasks in various apps:
+	init_mission_timekeeper();
+
+	flag_200hz = create_flag(4U);
+	flag_20hz = create_flag(49U);
+	flag_50hz = create_flag(19U);
+	flag_1000hz = create_flag(0U);
+	flag_10hz = create_flag(99U);
+	flag_1hz = create_flag(999U);
+
+	// Initialize the shell and underlying serial port API at 460800 baud, 8n1 on SCI1:
+	setup_system_shell();
+
+	printf("Initialized all drivers...\r\n");
+
+	printf("Initialized system shell...\r\n now installing apps...\r\n");
+
+	if(install_cmd("led_ctl", ledcontrol) < 0)
+	{
+		printf("Install error in command led_ctl\r\n");
+	}
+
+	if(install_cmd("clear", shell_clear) < 0)
+	{
+		printf("Install error in command clear\r\n");
+	}
+
+	if(install_cmd("motorset", motorcontrol) < 0)
+	{
+		printf("Install error in command motorset\r\n");
+	}
+
+	if(install_cmd("fc_app", flight_app) < 0)
+	{
+		printf("Install error in command fc_app\r\n");
+	}
+
+	if(install_cmd("esc_cal", calibrate_esc) < 0)
+	{
+		printf("Install error in command esc_cal\r\n");
+	}
+
+	printf("...Done, enabling interrupts.\r\n");
+
+	_enable_interrupts();
+
+	while(1)
+	{
+		shell_run();
+	}
+}

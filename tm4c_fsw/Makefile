@@ -8,8 +8,8 @@ JLINK_PATH=../../JLink_Linux_V480_x86_64
 PREFIX=$(TOOLCHAIN)/arm-none-eabi-
 
 ARCHFLAGS=-mcpu=cortex-m4 -mthumb -mfloat-abi=softfp -mfpu=fpv4-sp-d16 -I$(TOOLCHAIN_ROOT)/arm-none-eabi/include -fsingle-precision-constant 
-CFLAGS=-nostdlib -ffunction-sections -I$(ATHENA_PATH)/arch/tivaware_tm4c/ -I$(ATHENA_PATH)/arch/tivaware_tm4c/inc/ -I$(ATHENA_PATH)/arch/tivaware_tm4c/driverlib/ -I./user_include -I./user_include/hal_interface -g -O2 -Wall -Dgcc -DTARGET_IS_TM4C123_RA3 -DPART_TM4C123GH6PZ
-LDFLAGS=-Wl,--gc-sections,-Map,$(TARGET).map,-Tlinker.ld --entry ResetISR
+CFLAGS=-nostdlib -ffunction-sections -I$(ATHENA_PATH)/arch/tivaware_tm4c/ -I$(ATHENA_PATH)/arch/tivaware_tm4c/inc/ -I$(ATHENA_PATH)/arch/tivaware_tm4c/driverlib/ -I./user_include -I./user_include/hal_interface -g -O2 -Wall -Dgcc -DTARGET_IS_TM4C123_RA3 -DPART_TM4C123GH6PZ -DSYSTEM_SHELL_BAREMETAL
+LDFLAGS=--specs=nosys.specs -Wl,--gc-sections,-Map,$(TARGET).map,-Tlinker.ld --entry ResetISR
 LDFLAGS+=$(ARCHFLAGS)
 
 CC=$(PREFIX)gcc

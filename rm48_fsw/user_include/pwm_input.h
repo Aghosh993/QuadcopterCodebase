@@ -95,11 +95,9 @@ typedef enum {
 	VALUE_ERR
 } channel5_mode_state;
 
-void init_rc_inputs(rc_joystick_data_struct* js);
+void init_rc_inputs(rc_joystick_data_struct* js, int calibrate);
 void do_rc_channel_callibration(rc_joystick_data_struct* js, uint8_t axis);
-
 void get_rc_input_values(rc_joystick_data_struct* js);
-
 channel5_mode_state get_ch5_mode(rc_joystick_data_struct js);
 
 #endif

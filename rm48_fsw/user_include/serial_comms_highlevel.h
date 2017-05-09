@@ -10,7 +10,7 @@
 #include <stdint.h>
 #include "serial_comms_highlevel_hal.h"
 
-#define SERIAL_BUFFER_SIZE	2048U
+#define SERIAL_BUFFER_SIZE	1024U
 
 typedef enum {
 	PORT_IDLE,

@@ -34,11 +34,8 @@ def main():
 	while True:
 		msg = bus.recv()
 		if(msg.arbitration_id == arbID and msg.is_extended_id==False):
-			height = unpack('<f', msg.data[0:4])[0]
-			print(height)
-			# for i in range(0, msg.dlc):
-				# sys.stdout.write(chr(msg.data[i]))
-				# sys.stdout.flush()
+			height_heading_msg = unpack('<ff', msg.data[0:8])
+			print("Height: %0.2f"%height_heading_msg[0]+", Heading: %0.1f"%height_heading_msg[1])
 
 
 if __name__ == '__main__':

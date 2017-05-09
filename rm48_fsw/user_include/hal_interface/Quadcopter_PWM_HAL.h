@@ -53,4 +53,6 @@ void QuadRotor_motor2_setDuty_raw(float duty);
 void QuadRotor_motor3_setDuty_raw(float duty);
 void QuadRotor_motor4_setDuty_raw(float duty);
 
+int is_setup(int motor);
+
 #endif

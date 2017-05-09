@@ -34,7 +34,7 @@ void blocking_sci_SendData(uint8_t *dataptr, uint8_t len)
 	}
 }
 
-void esc_cal()
+void esc_cal(int motor)
 {
 	float max_pulse_ms = 0.85f;
 	uint32_t i = 0U;
@@ -43,22 +43,51 @@ void esc_cal()
 	float duty = 0.9f;
 
 	QuadRotor_PWM_init();
-	QuadRotor_motor1_setDuty_raw(max_pulse_ms);
-	QuadRotor_motor2_setDuty_raw(max_pulse_ms);
-	QuadRotor_motor3_setDuty_raw(max_pulse_ms);
-	QuadRotor_motor4_setDuty_raw(max_pulse_ms);
+
+	switch(motor)
+	{
+		case 1:
+			QuadRotor_motor1_start();
+			QuadRotor_motor1_setDuty_raw(max_pulse_ms);
+			break;
+		case 2:
+			QuadRotor_motor2_start();
+			QuadRotor_motor2_setDuty_raw(max_pulse_ms);
+			break;
+		case 3:
+			QuadRotor_motor3_start();
+			QuadRotor_motor3_setDuty_raw(max_pulse_ms);
+			break;
+		case 4:
+			QuadRotor_motor4_start();
+			QuadRotor_motor4_setDuty_raw(max_pulse_ms);
+			break;
+		default:
+			break;
+	}
 
 	timekeeper_delay(2000U);
 
 	for(i=0U; i<steps; ++i)
 	{
 		duty = max_pulse_ms - (float)i*(float)0.4f/(float)steps;
-		QuadRotor_motor1_setDuty_raw(duty);
-		QuadRotor_motor2_setDuty_raw(duty);
-		QuadRotor_motor3_setDuty_raw(duty);
-		QuadRotor_motor4_setDuty_raw(duty);
+		switch(motor)
+			{
+				case 1:
+					QuadRotor_motor1_setDuty_raw(duty);
+					break;
+				case 2:
+					QuadRotor_motor2_setDuty_raw(duty);
+					break;
+				case 3:
+					QuadRotor_motor3_setDuty_raw(duty);
+					break;
+				case 4:
+					QuadRotor_motor4_setDuty_raw(duty);
+					break;
+				default:
+					break;
+			}
 		timekeeper_delay(3U);
 	}
-
-	while(1);
 }

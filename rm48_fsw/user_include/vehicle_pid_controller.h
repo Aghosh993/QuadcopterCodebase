@@ -116,8 +116,8 @@
 #define roll_kI 		0.0f
 #define pitch_kI 		0.0f
 
-#define roll_kD 		0.005f
-#define pitch_kD 		0.005f
+#define roll_kD 		0.0025f
+#define pitch_kD 		0.0025f
 
 
 #define GND_EFFECT_TRANSITION_POINT1		0.1f

@@ -6,23 +6,53 @@
  */
 
 #include "sf10_reader.h"
-#include "mission_timekeeper.h"
 
 static volatile int _received_new_data = 0;
 
-void init_new_sf10_data_handler(sf10_sensor_data_handler *dst, uint8_t timeout_limit, float max_height_possible, void* uart_tx_func_pointer)
+static void send_byte_to_sf10A(sf10_sensor_data_handler *dh, uint8_t send_byte)
 {
-	dst->ncycles_timeout_limit = timeout_limit;
-	dst->last_received_height = 0.0f;
-	dst->max_height_possible = max_height_possible;
-	dst->message_buffer_iterator = 0U;
-	dst->height_variable_lock = RESOURCE_FREE;
-	dst->uart_tx_function_ptr = uart_tx_func_pointer;
-	dst->_received_new_data = 0;
-	dst->acq_st = STATE_IDLE;
+    serialport_send_data_buffer(dh->sensor_port, &send_byte, 1U);
 }
 
-void sf10_reader_callback(sf10_sensor_data_handler *dh, uint8_t c)
+static uint8_t find_decimal_place(uint8_t buffer[MESSAGE_BUFFER_MAX_LEN])
+{
+	uint8_t i = 0U;
+	for(i = 0U; i < MESSAGE_BUFFER_MAX_LEN; ++i)
+	{
+		if(buffer[i] == '.')
+		{
+			return i;
+		}
+	}
+	/*
+	 * Return max value of an unsigned 8-bit integer to indicate error,
+	 * since message buffer is not going to be that high in length anyway:
+	 */
+	return 255U;
+}
+
+static float powers_of_ten(int place)
+{
+	switch(place)
+	{
+	case -3:
+		return 0.001f;
+	case -2:
+		return 0.010f;
+	case -1:
+		return 0.100f;
+	case 0:
+		return 1.000f;
+	case 1:
+		return 10.00f;
+	case 2:
+		return 100.0f;
+	default:
+		return 0.000f;
+	}
+}
+
+static void sf10_reader_callback(sf10_sensor_data_handler *dh, uint8_t c)
 {
 	uint8_t decimal_place_position = 0U;
 	switch(dh->acq_st)
@@ -49,7 +79,7 @@ void sf10_reader_callback(sf10_sensor_data_handler *dh, uint8_t c)
 		 * If we reach the end of a data output from the sensor,
 		 * handle as appropriate:
 		 */
-		if(c == '\r' || c == '\n')
+		if(c == '\n')// || c == '\n')
 		{
 			dh->last_received_height = 0.0f;
 			decimal_place_position = find_decimal_place(dh->received_data_raw);
@@ -104,9 +134,39 @@ void sf10_reader_callback(sf10_sensor_data_handler *dh, uint8_t c)
 	}
 }
 
+void sf10_reader_process_bytes(sf10_sensor_data_handler *dh)
+{
+	uint8_t msg_buf[MESSAGE_BUFFER_MAX_LEN];
+	
+	uint32_t bytes_read = serialport_receive_data_buffer(dh->sensor_port, msg_buf, MESSAGE_BUFFER_MAX_LEN);
+	
+	uint32_t i = 0U;
+	
+	for(i=0; i<bytes_read; ++i)
+	{
+		sf10_reader_callback(dh, msg_buf[i]);
+	}
+}
+
+void init_new_sf10_data_handler(sf10_sensor_data_handler *dst, uint8_t timeout_limit, float max_height_possible, serialport *port, serialport_desc hw_desc)//, void* uart_tx_func_pointer)
+{
+	dst->ncycles_timeout_limit = timeout_limit;
+	dst->last_received_height = 0.0f;
+	dst->max_height_possible = max_height_possible;
+	dst->message_buffer_iterator = 0U;
+	dst->height_variable_lock = RESOURCE_FREE;
+	// dst->uart_tx_function_ptr = uart_tx_func_pointer;
+	dst->_received_new_data = 0;
+	dst->acq_st = STATE_IDLE;
+
+	serialport_init(port, hw_desc);
+	dst->sensor_port = port;
+}
+
 void request_sf10_sensor_update(sf10_sensor_data_handler *dh)
 {
-	dh->uart_tx_function_ptr(SF10_DATA_REQUEST_BYTE);
+	// dh->uart_tx_function_ptr(SF10_DATA_REQUEST_BYTE);
+	send_byte_to_sf10A(dh, SF10_DATA_REQUEST_BYTE);
 	dh->acq_st = STATE_SENT_DATA_REQUEST_BYTE;
 }
 
@@ -126,44 +186,6 @@ float get_last_sf10_timestamp(sf10_sensor_data_handler *dh)
 	local_copy = dh->timestamp;
 	dh->height_variable_lock = RESOURCE_FREE;
 	return local_copy;
-}
-
-static uint8_t find_decimal_place(uint8_t buffer[MESSAGE_BUFFER_MAX_LEN])
-{
-	uint8_t i = 0U;
-	for(i = 0U; i < MESSAGE_BUFFER_MAX_LEN; ++i)
-	{
-		if(buffer[i] == '.')
-		{
-			return i;
-		}
-	}
-	/*
-	 * Return max value of an unsigned 8-bit integer to indicate error,
-	 * since message buffer is not going to be that high in length anyway:
-	 */
-	return 255U;
-}
-
-static float powers_of_ten(int place)
-{
-	switch(place)
-	{
-	case -3:
-		return 0.001f;
-	case -2:
-		return 0.010f;
-	case -1:
-		return 0.100f;
-	case 0:
-		return 1.000f;
-	case 1:
-		return 10.00f;
-	case 2:
-		return 100.0f;
-	default:
-		return 0.000f;
-	}
 }
 
 int sf10_received_new_data(sf10_sensor_data_handler *dh)

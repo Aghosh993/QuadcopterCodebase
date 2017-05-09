@@ -22,6 +22,7 @@ void gnc_init(void)
 	initialize_imu(SCALE_2G, SCALE_250_DPS, SCALE_1POINT3_GAUSS, &imu_data); // Set up IMU registers
 	init_comp_filter(&st_vector);	// Initialize complementary filter data structs/vars
 	do_bias_calculation(&imu_data); // Bias calibration for IMU (gyro+accel)
+	
 	controller_init_vars();			// Set controller gains
 	// set_controller_mode(MODE_ANGULAR_POSITION_CONTROL); // Set controller to stabilize (i.e. angular control) mode
 	set_controller_mode(MODE_ANGULAR_RATE_CONTROL); // Set controller to acro (i.e. angular rate control) mode
