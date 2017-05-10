@@ -38,6 +38,7 @@ def main():
 	print("Attempting to open SocketCAN interface on can0...")
 	bus = can.interface.Bus(can_iface, bustype='socketcan_native')
 	t0 = time.time() # Initial time of start
+	firstPacket = True
 
 	if sensor == "sf11_bno055":
 		print("Acquiring height and heading sensor data now...")
@@ -46,6 +47,9 @@ def main():
 			msg = bus.recv()
 			if(msg.arbitration_id == arbID and msg.is_extended_id==False):
 				height_heading_msg = unpack('<ff', msg.data[0:8])
+				if firstPacket:
+					t0 = time.time()
+					firstPacket = False
 				fp.write("%0.3f"%(time.time()-t0)+", %0.2f"%height_heading_msg[0]+", %0.1f\n"%height_heading_msg[1])
 				if verboseMode:
 					print("Height: %0.2f"%height_heading_msg[0]+", Heading: %0.1f"%height_heading_msg[1])
@@ -57,6 +61,9 @@ def main():
 			msg = bus.recv()
 			if(msg.arbitration_id == arbID and msg.is_extended_id==False):
 				flow_msg = unpack('<ff', msg.data[0:8])
+				if firstPacket:
+					t0 = time.time()
+					firstPacket = False
 				fp.write("%0.3f"%(time.time()-t0)+", %0.2f"%flow_msg[0]+", %0.2f\n"%flow_msg[1])
 				if verboseMode:
 					print("X: %0.2f"%flow_msg[0]+", Y: %0.2f"%flow_msg[1])
@@ -68,6 +75,9 @@ def main():
 			msg = bus.recv()
 			if(msg.arbitration_id == arbID and msg.is_extended_id==False):
 				ahrs_rp_msg = unpack('<ff', msg.data[0:8])
+				if firstPacket:
+					t0 = time.time()
+					firstPacket = False
 				fp.write("%0.3f"%(time.time()-t0)+", %0.2f"%ahrs_rp_msg[0]+", %0.2f\n"%ahrs_rp_msg[1])
 				if verboseMode:
 					print("Roll: %0.2f"%ahrs_rp_msg[0]+", Pitch: %0.2f"%ahrs_rp_msg[1])
@@ -79,6 +89,9 @@ def main():
 			msg = bus.recv()
 			if(msg.arbitration_id == arbID and msg.is_extended_id==False):
 				yaw_height_msg = unpack('<ff', msg.data[0:8])
+				if firstPacket:
+					t0 = time.time()
+					firstPacket = False
 				fp.write("%0.3f"%(time.time()-t0)+", %0.2f"%yaw_height_msg[0]+", %0.2f\n"%yaw_height_msg[1])
 				if verboseMode:
 					print("Yaw: %0.2f"%yaw_height_msg[0]+", Height_Est: %0.2f"%yaw_height_msg[1])
@@ -90,6 +103,9 @@ def main():
 			msg = bus.recv()
 			if(msg.arbitration_id == arbID and msg.is_extended_id==False):
 				v_z_msg = unpack('<f', msg.data[0:4])
+				if firstPacket:
+					t0 = time.time()
+					firstPacket = False
 				fp.write("%0.3f"%(time.time()-t0)+", %0.2f\n"%v_z_msg[0])
 				if verboseMode:
 					print("Vertical Vel: %0.2f"%v_z_msg[0])
