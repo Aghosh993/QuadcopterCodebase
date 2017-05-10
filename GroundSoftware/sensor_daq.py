@@ -14,7 +14,7 @@ def main():
 	parser.add_argument('can_iface', metavar='can_iface', nargs=1, help='Interface identifier of the CAN interface to use')
 	parser.add_argument('sensor_id', metavar='sensor', nargs=1, help='Sensor ID to get data for. Options: sf11_bno055, flow, ahrs_rp, yaw_height, v_z')
 	parser.add_argument('logfile', metavar='log_file', nargs=1, help='File to log the raw data to')
-	parser.add_argument('--show-output', help='Print output for debugging')
+	parser.add_argument('-so', '--show-output', help='Print output for debugging')
 
 	args = parser.parse_args()
 
