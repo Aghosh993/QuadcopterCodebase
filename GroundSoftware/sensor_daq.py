@@ -17,6 +17,7 @@ def main():
 
 	args = parser.parse_args()
 
+	can_iface = args.can_iface[0]
 	sensor = args.sensor_id[0]
 	filename = args.logfile[0]
 
