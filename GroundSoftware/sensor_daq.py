@@ -14,12 +14,17 @@ def main():
 	parser.add_argument('can_iface', metavar='can_iface', nargs=1, help='Interface identifier of the CAN interface to use')
 	parser.add_argument('sensor_id', metavar='sensor', nargs=1, help='Sensor ID to get data for. Options: sf11_bno055, flow, ahrs_rp, yaw_height, v_z')
 	parser.add_argument('logfile', metavar='log_file', nargs=1, help='File to log the raw data to')
+	parser.add_argument('--show-output', help='Print output for debugging')
 
 	args = parser.parse_args()
 
 	can_iface = args.can_iface[0]
 	sensor = args.sensor_id[0]
 	filename = args.logfile[0]
+
+	verboseMode = False
+	if args.show-output:
+		verboseMode = True
 
 	try:
 		fp = open(filename, "w+")
@@ -42,7 +47,8 @@ def main():
 			if(msg.arbitration_id == arbID and msg.is_extended_id==False):
 				height_heading_msg = unpack('<ff', msg.data[0:8])
 				fp.write("%0.3f"%(time.time()-t0)+", %0.2f"%height_heading_msg[0]+", %0.1f\n"%height_heading_msg[1])
-				print("Height: %0.2f"%height_heading_msg[0]+", Heading: %0.1f"%height_heading_msg[1])
+				if verboseMode:
+					print("Height: %0.2f"%height_heading_msg[0]+", Heading: %0.1f"%height_heading_msg[1])
 
 	elif sensor == "flow":
 		print("Acquiring X and Y flow sensor data now...")
@@ -52,7 +58,8 @@ def main():
 			if(msg.arbitration_id == arbID and msg.is_extended_id==False):
 				flow_msg = unpack('<ff', msg.data[0:8])
 				fp.write("%0.3f"%(time.time()-t0)+", %0.2f"%flow_msg[0]+", %0.2f\n"%flow_msg[1])
-				print("X: %0.2f"%flow_msg[0]+", Y: %0.2f"%flow_msg[1])
+				if verboseMode:
+					print("X: %0.2f"%flow_msg[0]+", Y: %0.2f"%flow_msg[1])
 				
 	elif sensor == "ahrs_rp":
 		print("Acquiring AHRS roll and pitch data now...")
@@ -62,7 +69,8 @@ def main():
 			if(msg.arbitration_id == arbID and msg.is_extended_id==False):
 				ahrs_rp_msg = unpack('<ff', msg.data[0:8])
 				fp.write("%0.3f"%(time.time()-t0)+", %0.2f"%ahrs_rp_msg[0]+", %0.2f\n"%ahrs_rp_msg[1])
-				print("Roll: %0.2f"%ahrs_rp_msg[0]+", Pitch: %0.2f"%ahrs_rp_msg[1])
+				if verboseMode:
+					print("Roll: %0.2f"%ahrs_rp_msg[0]+", Pitch: %0.2f"%ahrs_rp_msg[1])
 				
 	elif sensor == "yaw_height":
 		print("Acquiring yaw sensor and height estimator data now...")
@@ -72,7 +80,8 @@ def main():
 			if(msg.arbitration_id == arbID and msg.is_extended_id==False):
 				yaw_height_msg = unpack('<ff', msg.data[0:8])
 				fp.write("%0.3f"%(time.time()-t0)+", %0.2f"%yaw_height_msg[0]+", %0.2f\n"%yaw_height_msg[1])
-				print("Yaw: %0.2f"%yaw_height_msg[0]+", Height_Est: %0.2f"%yaw_height_msg[1])
+				if verboseMode:
+					print("Yaw: %0.2f"%yaw_height_msg[0]+", Height_Est: %0.2f"%yaw_height_msg[1])
 				
 	elif sensor == "v_z":
 		print("Acquiring vertical velocity estimator data now...")
@@ -82,7 +91,8 @@ def main():
 			if(msg.arbitration_id == arbID and msg.is_extended_id==False):
 				v_z_msg = unpack('<f', msg.data[0:4])
 				fp.write("%0.3f"%(time.time()-t0)+", %0.2f\n"%v_z_msg[0])
-				print("Vertical Vel: %0.2f"%v_z_msg[0])
+				if verboseMode:
+					print("Vertical Vel: %0.2f"%v_z_msg[0])
 				
 	else:
 		print("Invalid sensor ID selected")

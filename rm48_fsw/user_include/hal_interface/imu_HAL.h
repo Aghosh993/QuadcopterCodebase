@@ -31,9 +31,10 @@
 #define MPU9250_GYRO_CONFIG			0x1B
 #define MPU9250_ACCEL_CONFIG		0x1C
 #define MPU9250_ACCEL_CONFIG2		0x1D
-	// #define ACCEL_LPF_21_2_HZ			1
-	// #define ACCEL_LPF_99_HZ				1
-	#define ACCEL_LPF_218_1_HZ				1
+#define ACCEL_NO_LPF				1
+// #define ACCEL_LPF_21_2_HZ			1
+// #define ACCEL_LPF_99_HZ				1
+// #define ACCEL_LPF_218_1_HZ			1
 
 /*
 	MPU-9250 device data register addresses:

@@ -448,7 +448,7 @@ void flight_app(int argc, char** argv)
 				// Run height estimation Kalman filter:
 				gnc_height_kalman_update(&height_estimator, height_sensor_reading, gnc_get_vertical_dynamic_acceleration(), sd.roll, sd.pitch);
 
-				// // Obtain new height throttle command:
+				// Obtain new height throttle command:
 				height_closedloop_throttle_cmd = gnc_get_height_controller_throttle_command(throttle_value_common_local*max_height_cmd, 
 																						height_estimator.height_estimated,
 																						height_estimator.vertical_velocity_estimated);
@@ -526,16 +526,20 @@ void flight_app(int argc, char** argv)
 
 						get_rc_input_values(&rc_data);
 
-						if(get_ch5_mode(rc_data)==MODE_FAILSAFE)
-						{
-							gnc_integral_disable();
-							set_controller_mode(MODE_ANGULAR_POSITION_CONTROL);
-						}
-						else
-						{
-							gnc_integral_enable();
-							set_controller_mode(MODE_ANGULAR_RATE_CONTROL);
-						}
+						// if(get_ch5_mode(rc_data)==MODE_FAILSAFE)
+						// {
+						// 	gnc_integral_disable();
+						// 	set_controller_mode(MODE_ANGULAR_POSITION_CONTROL);
+						// }
+						// else
+						// {
+						// 	gnc_integral_enable();
+						// 	set_controller_mode(MODE_ANGULAR_RATE_CONTROL);
+						// }
+
+						gnc_integral_disable();
+						set_controller_mode(MODE_ANGULAR_POSITION_CONTROL);
+
 						if(rc_data.mode_switch_channel_validity == CHANNEL_VALID)
 						{
 							#ifdef SEND_RC_INPUT_TELEMETRY
@@ -644,6 +648,8 @@ void main(void)
 	printf("...Done, enabling interrupts.\r\n");
 
 	_enable_interrupts();
+
+	flight_app(0, NULL);
 
 	while(1)
 	{
