@@ -1,4 +1,4 @@
-#include "imu_HAL.h"
+#include "imu_hal.h"
 
 static int32_t i2cReceiveByte_safe(i2cBASE_t *i2c)
 {
@@ -101,8 +101,10 @@ void imu_hal_init(void)
 	i2cREG1->MDR |= 1<<5;         // Clear Reset
 }
 
-void initialize_imu(ACC_SCALE a, GYRO_SCALE g, MAG_SCALE m, imu_scaled_data_struct* buf)
+int initialize_imu(ACC_SCALE a, GYRO_SCALE g, MAG_SCALE m, imu_scaled_data_struct* buf)
 {
+	imu_hal_init();
+	
 	buf->acc_meas_scale = a;
 	buf->gyro_meas_scale = g;
 	buf->mag_meas_scale = m;
@@ -172,6 +174,7 @@ void initialize_imu(ACC_SCALE a, GYRO_SCALE g, MAG_SCALE m, imu_scaled_data_stru
 	mpu9250_write_register(MPU9250_ACCEL_CONFIG, accel_config_mask);
 	mpu9250_write_register(MPU9250_ACCEL_CONFIG2, accel_config2_mask);
 	mpu9250_write_register(MPU9250_GYRO_CONFIG, gyro_config_mask);
+	return 0;
 }
 
 int get_raw_imu_data(imu_raw_data_struct* buffer)

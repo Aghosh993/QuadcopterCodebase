@@ -19,6 +19,7 @@
 #include "cpu_hal_interface.h"
 #include "system_shell.h"	
 #include "can_comms.h"
+#include "complementary_filter.h"
 
 #include <stdint.h>
 #include <stdio.h>
@@ -61,6 +62,7 @@ volatile uint8_t flag_1hz;
 volatile uint8_t flag_10hz;
 volatile uint8_t flag_20hz;
 volatile uint8_t flag_50hz;
+volatile uint8_t flag_100hz;
 volatile uint8_t flag_200hz;
 volatile uint8_t flag_1000hz;
 
@@ -407,7 +409,8 @@ void flight_app(int argc, char** argv)
 			{
 				reset_flag(flag_10hz);				
 				rc_input_validity_watchdog_callback(); // Check if sufficient number of RC rising edges have occurred in last 100 ms
-				_disable_interrupts();
+
+				printf("Roll: %f, Pitch: %f\r\n", sd.roll, sd.pitch);
 			}
 			
 			/* 
@@ -415,6 +418,10 @@ void flight_app(int argc, char** argv)
 				This function call is blocking and takes about 600 us to run.
 			 */
 			gnc_get_vehicle_state();
+			
+			#ifdef SEND_CAN_ROLL_PITCH
+				publish_roll_pitch(sd.roll, sd.pitch);
+			#endif			
 			
 			// For telemetry purposes:
 			gnc_get_raw_sensor_data(&rd);
@@ -490,10 +497,6 @@ void flight_app(int argc, char** argv)
 				if(get_flag_state(flag_50hz) == STATE_PENDING)
 				{
 					reset_flag(flag_50hz);
-
-					#ifdef SEND_CAN_ROLL_PITCH
-						publish_roll_pitch(sd.roll, sd.pitch);
-					#endif
 
 					#ifdef SEND_CAN_YAW_HEIGHT
 						publish_yaw_height_estimate(yaw_sensor_reading, height_estimator.height_estimated);
@@ -592,6 +595,92 @@ void flight_app(int argc, char** argv)
 /* USER CODE END */
 }
 
+void test_comp_filter(int argc, char** argv)
+{
+	printf("\r\nThis app will run the second-order complementary filter until the RC controller is switched off.\r\n");
+	printf("Press p to proceed or e to exit\r\n");
+	char c = ' ';
+	while(c != 'p' && c != 'e')
+	{
+		scanf("%c", &c);
+		if(c == 'e')
+		{
+			return;
+		}
+		if(c == 'p')
+		{
+			printf("Proceeding...\r\n");
+			break;
+		}
+	}
+  	_disable_interrupts();
+
+	// Initialize PWM channels for 4 motors and set all motors to stop by default:
+	QuadRotor_PWM_init();
+	QuadRotor_motor1_start();
+	QuadRotor_motor2_start();
+	QuadRotor_motor3_start();
+	QuadRotor_motor4_start();
+
+	/*
+		All motors stopped by default:
+	*/
+	QuadRotor_motor1_setDuty(0.0f);
+	QuadRotor_motor2_setDuty(0.0f); 
+	QuadRotor_motor3_setDuty(0.0f);
+	QuadRotor_motor4_setDuty(0.0f);
+
+	_enable_interrupts();
+
+	timekeeper_delay(3000U);
+
+	complementary_filter_struct s;
+	init_complementary_filter(&s, SCALE_2G, SCALE_250_DPS, SCALE_1POINT3_GAUSS,
+	                          0.010f, 0.8f, 1.0f);
+
+	init_rc_inputs(&rc_data, 0);
+
+	timekeeper_delay(1000U);
+
+	printf("Setup complete, starting main loop...\r\n");
+
+	while(1)
+	{
+		// Get RC Joystick data from last reception:
+
+		get_rc_input_values(&rc_data);
+
+		if(rc_data.mode_switch_channel_validity == CHANNEL_VALID)
+		{
+			QuadRotor_motor1_setDuty(0.50f*(rc_data.vertical_channel_value + 1.0f));
+			QuadRotor_motor2_setDuty(0.50f*(rc_data.vertical_channel_value + 1.0f));
+			QuadRotor_motor3_setDuty(0.50f*(rc_data.vertical_channel_value + 1.0f));
+			QuadRotor_motor4_setDuty(0.50f*(rc_data.vertical_channel_value + 1.0f));
+
+			if(get_flag_state(flag_100hz) == STATE_PENDING)
+			{
+				reset_flag(flag_100hz);
+				update_complementary_filter(&s);
+				#ifdef SEND_CAN_ROLL_PITCH
+					publish_roll_pitch(radians_to_degrees(s.state_vector.roll), radians_to_degrees(s.state_vector.pitch));
+				#endif
+			}
+
+			if(get_flag_state(flag_10hz) == STATE_PENDING)
+			{
+				reset_flag(flag_10hz);
+				rc_input_validity_watchdog_callback();
+				// printf("Roll: %f Pitch: %f\r\n", radians_to_degrees(s.state_vector.roll), radians_to_degrees(s.state_vector.pitch));
+				// printf("Roll: %f Pitch: %f\r\n", radians_to_degrees(s.state_vector.roll_rate), radians_to_degrees(s.state_vector.pitch_rate));
+			}
+		}
+		else
+		{
+			printf("\r\nUSER button pressed, exiting...\r\n");
+			return;
+		}
+	}
+}
 
 void main(void)
 {
@@ -610,6 +699,7 @@ void main(void)
 	flag_20hz = create_flag(49U);
 	flag_50hz = create_flag(19U);
 	flag_1000hz = create_flag(0U);
+	flag_100hz = create_flag(9U);
 	flag_10hz = create_flag(99U);
 	flag_1hz = create_flag(999U);
 
@@ -645,11 +735,16 @@ void main(void)
 		printf("Install error in command esc_cal\r\n");
 	}
 
+	if(install_cmd("compfilter", test_comp_filter) < 0)
+	{
+		printf("Install error in command compfilter\r\n");
+	}
+
 	printf("...Done, enabling interrupts.\r\n");
 
 	_enable_interrupts();
 
-	flight_app(0, NULL);
+	// flight_app(0, NULL);
 
 	while(1)
 	{

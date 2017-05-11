@@ -33,9 +33,9 @@ volatile vehicle_bias_data_struct quadrotor_imu_bias_values;
 
 static float get_vector_magnitude(float magnetometer_data_input[3])
 {
-	return sqrtf(magnetometer_data_input[AXIS_X]*magnetometer_data_input[AXIS_X] +
-				 magnetometer_data_input[AXIS_Y]*magnetometer_data_input[AXIS_Y] +
-				 magnetometer_data_input[AXIS_Z]*magnetometer_data_input[AXIS_Z]);
+	return sqrtf(magnetometer_data_input[MAG_AXIS_X]*magnetometer_data_input[MAG_AXIS_X] +
+				 magnetometer_data_input[MAG_AXIS_Y]*magnetometer_data_input[MAG_AXIS_Y] +
+				 magnetometer_data_input[MAG_AXIS_Z]*magnetometer_data_input[MAG_AXIS_Z]);
 }
 
 static void normalize_magnetometer_data(imu_scaled_data_struct input, float* normalized_output)
@@ -111,9 +111,9 @@ void get_corrected_scaled_gyro_data(imu_scaled_data_struct* input, float* output
 
 void get_corrected_scaled_accelerometer_data(imu_scaled_data_struct* input, float* output)
 {
-	output[AXIS_X] = input->accel_data[AXIS_X] + quadrotor_imu_bias_values.x_accelerometer_bias;
-	output[AXIS_Y] = input->accel_data[AXIS_Y] + quadrotor_imu_bias_values.y_accelerometer_bias;
-	output[AXIS_Z] = input->accel_data[AXIS_Z] + quadrotor_imu_bias_values.z_accelerometer_bias;
+	output[MAG_AXIS_X] = input->accel_data[MAG_AXIS_X] + quadrotor_imu_bias_values.x_accelerometer_bias;
+	output[MAG_AXIS_Y] = input->accel_data[MAG_AXIS_Y] + quadrotor_imu_bias_values.y_accelerometer_bias;
+	output[MAG_AXIS_Z] = input->accel_data[MAG_AXIS_Z] + quadrotor_imu_bias_values.z_accelerometer_bias;
 }
 
 void get_filtered_vehicle_state(filtered_quadrotor_state* statevar, imu_scaled_data_struct* input)
@@ -131,16 +131,16 @@ void get_filtered_vehicle_state(filtered_quadrotor_state* statevar, imu_scaled_d
 	get_corrected_scaled_gyro_data(input, corrected_gyro_data);
 
 	#ifdef ACC_USE_SW_LPF
-		acc_x_filtered = lowpass_filter(corrected_accelerometer_data[AXIS_X], &acc_x_lpf);//1
-		acc_y_filtered = lowpass_filter(corrected_accelerometer_data[AXIS_Y], &acc_y_lpf);//0
+		acc_x_filtered = lowpass_filter(corrected_accelerometer_data[ACCEL_AXIS_X], &acc_x_lpf);//1
+		acc_y_filtered = lowpass_filter(corrected_accelerometer_data[ACCEL_AXIS_Y], &acc_y_lpf);//0
 
-		acc_z_filtered_lpf = lowpass_filter(corrected_accelerometer_data[AXIS_Z], &acc_z_lpf);
+		acc_z_filtered_lpf = lowpass_filter(corrected_accelerometer_data[ACCEL_AXIS_Z], &acc_z_lpf);
 		acc_z_filtered = acc_z_filtered_lpf;
 	#endif
 	#ifndef ACC_USE_SW_LPF
-		acc_x_filtered = corrected_accelerometer_data[AXIS_X];
-		acc_y_filtered = corrected_accelerometer_data[AXIS_Y];
-		acc_z_filtered = corrected_accelerometer_data[AXIS_Z];
+		acc_x_filtered = corrected_accelerometer_data[ACCEL_AXIS_X];
+		acc_y_filtered = corrected_accelerometer_data[ACCEL_AXIS_Y];
+		acc_z_filtered = corrected_accelerometer_data[ACCEL_AXIS_Z];
 	#endif
 
 	normalize_magnetometer_data(*input, normalized_magnetometer_data);
@@ -149,9 +149,9 @@ void get_filtered_vehicle_state(filtered_quadrotor_state* statevar, imu_scaled_d
 	// magnetometer_y_filtered = lowpass_filter(normalized_magnetometer_data[AXIS_Y], &magnetometer_y_lpf);
 	// magnetometer_z_filtered = lowpass_filter(normalized_magnetometer_data[AXIS_Z], &magnetometer_z_lpf);
 
-	magnetometer_x_filtered = normalized_magnetometer_data[AXIS_X];
-	magnetometer_y_filtered = normalized_magnetometer_data[AXIS_Y];
-	magnetometer_z_filtered = normalized_magnetometer_data[AXIS_Z];
+	magnetometer_x_filtered = normalized_magnetometer_data[MAG_AXIS_X];
+	magnetometer_y_filtered = normalized_magnetometer_data[MAG_AXIS_Y];
+	magnetometer_z_filtered = normalized_magnetometer_data[MAG_AXIS_Z];
 
 	/*
 	 * Obtain vehicle dynamic acceleration by subtracting filtered Z-axis
@@ -164,7 +164,7 @@ void get_filtered_vehicle_state(filtered_quadrotor_state* statevar, imu_scaled_d
 	 * Important note: Using these conventions, dynamic acceleration upward is considered NEGATIVE!!
 	 */
 	float vertical_dynamic_acceleration = acc_z_filtered - 9.810f;
-	statevar->vertical_dynamic_acceleration_post_lpf = corrected_accelerometer_data[AXIS_Z];//vertical_dynamic_acceleration;
+	statevar->vertical_dynamic_acceleration_post_lpf = corrected_accelerometer_data[ACCEL_AXIS_Z];//vertical_dynamic_acceleration;
 
 #ifdef GYRO_HPF_ENABLED_X
 	gyr_pitch_filtered_post_hpf = highpass_filter(corrected_gyro_data[AXIS_PITCH], &gyr_pitch_hpf);
@@ -287,9 +287,9 @@ void do_bias_calculation(imu_scaled_data_struct *imu_data)
 		pitch_gyro_running_sum += imu_data->gyro_data[AXIS_PITCH];
 		yaw_gyro_running_sum += imu_data->gyro_data[AXIS_YAW];
 
-		x_accelerometer_running_sum += imu_data->accel_data[AXIS_X];
-		y_accelerometer_running_sum += imu_data->accel_data[AXIS_Y];
-		z_accelerometer_running_sum += imu_data->accel_data[AXIS_Z];
+		x_accelerometer_running_sum += imu_data->accel_data[ACCEL_AXIS_X];
+		y_accelerometer_running_sum += imu_data->accel_data[ACCEL_AXIS_Y];
+		z_accelerometer_running_sum += imu_data->accel_data[ACCEL_AXIS_Z];
 
 		timekeeper_delay((uint16_t)BIAS_CALC_SAMPLE_DT_MS);
 	}
@@ -303,14 +303,14 @@ void do_bias_calculation(imu_scaled_data_struct *imu_data)
 
 #ifdef DEBUG_BIAS_VALUES
 	float telem_msg_accel_bias[3];
-	telem_msg_accel_bias[0] = quadrotor_imu_bias_values.x_accelerometer_bias;
-	telem_msg_accel_bias[1] = quadrotor_imu_bias_values.y_accelerometer_bias;
-	telem_msg_accel_bias[2] = (float)ACCELEROMETER_Z_IDEAL_READING - (z_accelerometer_running_sum/(float)BIAS_CALC_NUM_SAMPLES);
+	telem_msg_accel_bias[ACCEL_AXIS_X] = quadrotor_imu_bias_values.x_accelerometer_bias;
+	telem_msg_accel_bias[ACCEL_AXIS_Y] = quadrotor_imu_bias_values.y_accelerometer_bias;
+	telem_msg_accel_bias[ACCEL_AXIS_Z] = (float)ACCELEROMETER_Z_IDEAL_READING - (z_accelerometer_running_sum/(float)BIAS_CALC_NUM_SAMPLES);
 
 	float telem_msg_gyro_bias[3];
-	telem_msg_gyro_bias[0] = quadrotor_imu_bias_values.roll_gyro_bias;
-	telem_msg_gyro_bias[1] = quadrotor_imu_bias_values.pitch_gyro_bias;
-	telem_msg_gyro_bias[2] = quadrotor_imu_bias_values.yaw_gyro_bias;
+	telem_msg_gyro_bias[AXIS_ROLL] = quadrotor_imu_bias_values.roll_gyro_bias;
+	telem_msg_gyro_bias[AXIS_PITCH] = quadrotor_imu_bias_values.pitch_gyro_bias;
+	telem_msg_gyro_bias[AXIS_YAW] = quadrotor_imu_bias_values.yaw_gyro_bias;
 
 	send_telem_msg_n_floats_blocking(&telem0, (uint8_t *)"acc_bias", 8, telem_msg_accel_bias, 3);
 	send_telem_msg_n_floats_blocking(&telem0, (uint8_t *)"gyro_bias", 9, telem_msg_gyro_bias, 3);

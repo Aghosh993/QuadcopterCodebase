@@ -1,25 +1,26 @@
 #ifndef IMU_H
 #define IMU_H	1
 
+#include <stdint.h>
 #include <math.h>
 
-#include <imu_HAL.h>
+#include <imu_hal.h>
 
-#define AXIS_X	1
-#define AXIS_Y	0
-#define AXIS_Z	2
+// #define AXIS_X	1
+// #define AXIS_Y	0
+// #define AXIS_Z	2
 
-#define AXIS_ROLL	AXIS_Y
-#define AXIS_PITCH	AXIS_X
-#define AXIS_YAW	AXIS_Z
+// #define AXIS_ROLL	AXIS_Y
+// #define AXIS_PITCH	AXIS_X
+// #define AXIS_YAW	AXIS_Z
 
-#define ACC_X_SIGN	1.0f
-#define ACC_Y_SIGN	1.0f
-#define ACC_Z_SIGN	-1.0f
+// #define ACC_X_SIGN	1.0f
+// #define ACC_Y_SIGN	1.0f
+// #define ACC_Z_SIGN	-1.0f
 
-#define GYRO_X_SIGN	-1.0f
-#define GYRO_Y_SIGN	-1.0f
-#define GYRO_Z_SIGN	1.0f
+// #define GYRO_X_SIGN	-1.0f
+// #define GYRO_Y_SIGN	-1.0f
+// #define GYRO_Z_SIGN	1.0f
 
 #define ACC_SCALE_2G				9.810f*0.000061035f
 #define ACC_SCALE_4G				9.810f*0.00012207f

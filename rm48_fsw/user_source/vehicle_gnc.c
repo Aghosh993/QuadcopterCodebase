@@ -18,7 +18,7 @@ static uint8_t gnc_en;
 
 void gnc_init(void)
 {
-	imu_hal_init(); // Initialize IMU I2C bus
+	// imu_hal_init(); // Initialize IMU I2C bus
 	initialize_imu(SCALE_2G, SCALE_250_DPS, SCALE_1POINT3_GAUSS, &imu_data); // Set up IMU registers
 	init_comp_filter(&st_vector);	// Initialize complementary filter data structs/vars
 	do_bias_calculation(&imu_data); // Bias calibration for IMU (gyro+accel)
@@ -66,9 +66,9 @@ void gnc_get_raw_sensor_data(gnc_raw_data *ret)
 	ret->pitch_gyro = imu_data.gyro_data[AXIS_PITCH];
 	ret->yaw_gyro = imu_data.gyro_data[AXIS_YAW];
 
-	ret->x_accel = imu_data.accel_data[AXIS_X];
-	ret->y_accel = imu_data.accel_data[AXIS_Y];
-	ret->z_accel = imu_data.accel_data[AXIS_Z];
+	ret->x_accel = imu_data.accel_data[ACCEL_AXIS_X];
+	ret->y_accel = imu_data.accel_data[ACCEL_AXIS_Y];
+	ret->z_accel = imu_data.accel_data[ACCEL_AXIS_Z];
 }
 
 void gnc_get_state_vector_data(gnc_state_data *ret)

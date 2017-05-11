@@ -6,13 +6,37 @@
 /*
 	Direction conventions:
 
-	The 50-pin edge connector on the Autopilot shall face towards the positive Y axis of the vehicle,
+	The 50-pin edge connector on the Autopilot shall face towards the positive X axis of the vehicle,
 	towards the side with motors 1 and 2
 
-	The JTAG conenctor shall be on the TOP, and shall face towards the positive X axis of the vehicle, towards the side with motors 2 and 3
+	The JTAG conenctor shall be on the TOP, and shall face towards the positive Y axis of the vehicle, towards the side with motors 2 and 3
 
 	The Z axis shall be positive, pointing DOWNWARDS
  */
+
+#define ACCEL_AXIS_X	0
+#define ACCEL_AXIS_Y	1
+#define ACCEL_AXIS_Z	2
+
+#define AXIS_ROLL	0
+#define AXIS_PITCH	1
+#define AXIS_YAW	2
+
+#define MAG_AXIS_X	0
+#define MAG_AXIS_Y	1
+#define MAG_AXIS_Z	2
+
+#define ACC_X_SIGN	1.0f
+#define ACC_Y_SIGN	1.0f
+#define ACC_Z_SIGN	-1.0f
+
+#define MAG_X_SIGN	1.0f
+#define MAG_Y_SIGN	1.0f
+#define MAG_Z_SIGN	-1.0f
+
+#define GYRO_ROLL_SIGN	-1.0f
+#define GYRO_PITCH_SIGN	-1.0f
+#define GYRO_YAW_SIGN	1.0f
 
 #define TIMEOUT_COUNTER_MAX		200000
 
@@ -114,7 +138,7 @@ typedef struct {
 
 void imu_hal_init(void);
 
-void initialize_imu(ACC_SCALE a, GYRO_SCALE g, MAG_SCALE m, imu_scaled_data_struct* buf);
+int initialize_imu(ACC_SCALE a, GYRO_SCALE g, MAG_SCALE m, imu_scaled_data_struct* buf);
 
 int get_raw_imu_data(imu_raw_data_struct* buffer);
 
