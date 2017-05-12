@@ -14,6 +14,8 @@ static volatile serialport *uart_port;
 
 static volatile uint8_t last_err;
 
+static volatile int16_t raw_roll, raw_pitch, raw_yaw;
+
 /*
 	Private functions for internal use by this library:
  */
@@ -203,18 +205,21 @@ void BNO055_process_buffer(void)
 	bytes_to_signed_int16.input[1] = packet_buffer[7];
 
 	_imu_data.heading = (float)bytes_to_signed_int16.output/(float)16.0f;
+	raw_yaw = bytes_to_signed_int16.output;
 
 	/* Roll */
 	bytes_to_signed_int16.input[0] = packet_buffer[8];
 	bytes_to_signed_int16.input[1] = packet_buffer[9];
 
 	_imu_data.roll = (float)bytes_to_signed_int16.output/(float)16.0f;
+	raw_roll = bytes_to_signed_int16.output;
 
 	/* Pitch */
 	bytes_to_signed_int16.input[0] = packet_buffer[10];
 	bytes_to_signed_int16.input[1] = packet_buffer[11];
 
 	_imu_data.pitch = (float)bytes_to_signed_int16.output/(float)16.0f;
+	raw_pitch = bytes_to_signed_int16.output;
 
 	/* Quaternion w */
 	bytes_to_signed_int16.input[0] = packet_buffer[6];
@@ -262,6 +267,13 @@ void BNO055_get_imu_data(bno055_data *data)
 	data->quaternion_y = _imu_data.quaternion_y;
 	data->quaternion_z = _imu_data.quaternion_z;
 	data->quaternion_w = _imu_data.quaternion_w;
+}
+
+void BNO055_get_raw_estimate(int16_t *d)
+{
+	d[0] = raw_roll;
+	d[1] = raw_pitch;
+	d[2] = raw_yaw;
 }
 
 float BNO055_get_heading(void)

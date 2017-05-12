@@ -2,6 +2,7 @@
 
 static volatile float last_lidar_height;
 static volatile float last_heading_reading;
+static int16_t last_att_roll, last_att_pitch, last_att_yaw;
 
 void get_sensor_msg(uint8_t* msg_data, sensor_msg m)
 {
@@ -11,6 +12,11 @@ void get_sensor_msg(uint8_t* msg_data, sensor_msg m)
         float output[2];
         uint8_t input[8];
     } uint8_to_f32_2;
+
+    union {
+        int16_t output;
+        uint8_t input[2];
+    } uint8_to_i16;
 
 	switch(m)
 	{
@@ -26,6 +32,19 @@ void get_sensor_msg(uint8_t* msg_data, sensor_msg m)
 			break;
 		case FLOW_MSG:
 			break;
+		case BNO_ATT_MSG:
+			uint8_to_i16.input[0] = msg_data[0];
+			uint8_to_i16.input[1] = msg_data[1];
+			last_att_roll = uint8_to_i16.output;
+
+			uint8_to_i16.input[0] = msg_data[2];
+			uint8_to_i16.input[1] = msg_data[3];
+			last_att_pitch = uint8_to_i16.output;
+
+			uint8_to_i16.input[0] = msg_data[4];
+			uint8_to_i16.input[1] = msg_data[5];
+			last_att_yaw = uint8_to_i16.output;
+			break;
 	}
 }
 
@@ -37,6 +56,13 @@ float get_last_can_height_msg(void)
 float get_last_can_heading_msg(void)
 {
 	return last_heading_reading;
+}
+
+void get_last_attitude(int16_t *att)
+{
+	att[0] = last_att_roll;
+	att[1] = last_att_pitch;
+	att[2] = last_att_yaw;
 }
 
 void publish_roll_pitch(float roll, float pitch)

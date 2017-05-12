@@ -9,7 +9,7 @@ t_start=$(timestamp)
 
 /home/alarm/QuadcopterCodebase/GroundSoftware/can_bringup.sh
 
-msgs="sf11_bno055 flow ahrs_rp yaw_height v_z"
+msgs="sf11_bno055 flow ahrs_rp yaw_height v_z bno055_att"
 for m in $msgs; 
 	do
 		filename=$LOG_DIR/${m}_${t_start}.csv

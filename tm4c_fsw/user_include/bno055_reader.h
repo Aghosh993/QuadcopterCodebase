@@ -133,5 +133,6 @@ int BNO055_received_new_data();
 void BNO055_get_imu_data(bno055_data *data);
 void BNO055_process_buffer(void);
 float BNO055_get_heading(void);
+void BNO055_get_raw_estimate(int16_t *d);
 
 #endif

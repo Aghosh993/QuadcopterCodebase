@@ -109,6 +109,20 @@ def main():
 				fp.write("%0.3f"%(time.time()-t0)+", %0.2f\n"%v_z_msg[0])
 				if verboseMode:
 					print("Vertical Vel: %0.2f"%v_z_msg[0])
+
+	elif sensor == "bno055_att":
+		print("Acquiring BNO055 attitude data now...")
+		arbID = 11
+		while True:
+			msg = bus.recv()
+			if(msg.arbitration_id == arbID and msg.is_extended_id==False):
+				att_msg = unpack('<hhh', msg.data[0:6])
+				if firstPacket:
+					t0 = time.time()
+					firstPacket = False
+				fp.write("%0.3f"%(time.time()-t0)+", %0.2f"%att_msg[0]/16+", %0.2f"%att_msg[1]/16+", %0.2f\n"%att_msg[2]/16)
+				if verboseMode:
+					print("Roll: %0.2f"%att_msg[0]+", Pitch: %0.2f"%att_msg[1]+", Yaw: %0.2f"%att_msg[2])
 				
 	else:
 		print("Invalid sensor ID selected")

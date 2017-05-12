@@ -351,7 +351,8 @@ static void enable_systick(void)
 
 typedef enum {
     HEIGHT_HEADING_MSG,
-    FLOW_MSG
+    FLOW_MSG,
+    BNO_ATT_MSG
 } sensor_msg;
 
 static void can_send_databuf(uint8_t* buf, int len, sensor_msg m_type)
@@ -369,6 +370,9 @@ static void can_send_databuf(uint8_t* buf, int len, sensor_msg m_type)
         case FLOW_MSG:
             sCANMessage.ui32MsgID = 0x00000002;
             break;
+        case BNO_ATT_MSG:
+            sCANMessage.ui32MsgID = 0x0000000A;
+            break;
     }
     CANMessageSet(CAN0_BASE, 1, &sCANMessage, MSG_OBJ_TYPE_TX);
 }
@@ -384,6 +388,32 @@ void send_sensor_msg(float* msg_data, sensor_msg m)
     f32_2_to_uint8.input[1] = msg_data[1];
 
     can_send_databuf(f32_2_to_uint8.output, 8, m);
+}
+
+void send_sensor_msg_int16(int16_t* msg_data, sensor_msg m)
+{
+    uint8_t buf[8];
+    buf[6] = 0U;
+    buf[7] = 0U;
+
+    union {
+        int16_t input;
+        uint8_t output[2];
+    } i16_to_uint8;
+
+    i16_to_uint8.input = msg_data[0];
+    buf[0] = i16_to_uint8.output[0];
+    buf[1] = i16_to_uint8.output[1];
+
+    i16_to_uint8.input = msg_data[1];
+    buf[2] = i16_to_uint8.output[0];
+    buf[3] = i16_to_uint8.output[1];
+
+    i16_to_uint8.input = msg_data[2];
+    buf[4] = i16_to_uint8.output[0];
+    buf[5] = i16_to_uint8.output[1];
+
+    can_send_databuf(buf, 8, m);
 }
 
 int main(void)
@@ -435,6 +465,7 @@ int main(void)
 
     #if !defined USE_CAN_ENCAP
         uint8_t sf10_25hz_trigger_flag = create_flag(39U);
+        uint8_t bno_100hz_flag = create_flag(9U);
 
         float height_sensor_reading = 0.0f;
         int i = 0;
@@ -521,6 +552,8 @@ int main(void)
 
     BNO055_trigger_get_data();
 
+    int16_t bno_raw_data[3];
+
     while(1)
     {
         #if !defined USE_CAN_ENCAP
@@ -535,6 +568,13 @@ int main(void)
                 send_sensor_msg(height_heading_telem, HEIGHT_HEADING_MSG);
                 request_sf10_sensor_update(&sf10_handler);
                 BNO055_trigger_get_data();
+            }
+
+            if(get_flag_state(bno_100hz_flag) == STATE_PENDING)
+            {
+                reset_flag(bno_100hz_flag);
+                BNO055_get_raw_estimate(&bno_raw_data[0]);
+                send_sensor_msg_int16(bno_raw_data, BNO_ATT_MSG);
             }
 
             if(sf10_received_new_data(&sf10_handler))
