@@ -12,7 +12,7 @@ import time
 def main():
 	parser = argparse.ArgumentParser(description='Display and log CAN bus telemetry items')
 	parser.add_argument('can_iface', metavar='can_iface', nargs=1, help='Interface identifier of the CAN interface to use')
-	parser.add_argument('sensor_id', metavar='sensor', nargs=1, help='Sensor ID to get data for. Options: sf11_bno055, flow, ahrs_rp, yaw_height, v_z')
+	parser.add_argument('sensor_id', metavar='sensor', nargs=1, help='Sensor ID to get data for. Options: sf11_bno055, flow, ahrs_rp, yaw_height, v_z, bno055_att, esc_cmds')
 	parser.add_argument('logfile', metavar='log_file', nargs=1, help='File to log the raw data to')
 	parser.add_argument('-so', '--show_output', help='Print output for debugging', action="store_true")
 
@@ -123,6 +123,19 @@ def main():
 				fp.write("%0.3f"%(time.time()-t0)+", %0.2f"%(float(att_msg[0])/16.)+", %0.2f"%(float(att_msg[1])/16.)+", %0.2f\n"%(float(att_msg[2])/16.))
 				if verboseMode:
 					print("Roll: %0.2f"%(float(att_msg[0])/16.)+", Pitch: %0.2f"%(float(att_msg[1])/16.)+", Yaw: %0.2f"%(float(att_msg[2])/16.))
+	elif sensor == "esc_cmds":
+		print("Acquiring BNO055 attitude data now...")
+		arbID = 6
+		while True:
+			msg = bus.recv()
+			if(msg.arbitration_id == arbID and msg.is_extended_id==False):
+				esc_cmd_msg = unpack('<HHHH', msg.data[0:8])
+				if firstPacket:
+					t0 = time.time()
+					firstPacket = False
+				fp.write("%0.3f"%(time.time()-t0)+", %0.5f"%(float(esc_cmd_msg[0])/65535.)+", %0.5f"%(float(esc_cmd_msg[1])/65535.)+", %0.5f"%(float(esc_cmd_msg[2])/65535.)+", %0.5f\n"%(float(esc_cmd_msg[3])/65535.))
+				if verboseMode:
+					print("M1: %0.2f"%(float(esc_cmd_msg[0])/65535.)+", M2: %0.2f"%(float(esc_cmd_msg[1])/65535.)+", M3: %0.2f"%(float(esc_cmd_msg[2])/65535.)+", M4: %0.2f"%(float(esc_cmd_msg[3])/65535.))
 				
 	else:
 		print("Invalid sensor ID selected")

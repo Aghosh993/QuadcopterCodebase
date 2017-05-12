@@ -103,3 +103,18 @@ void publish_vert_velocity_estimate(float v)
 
 	canTransmit(canREG3, canMESSAGE_BOX5, conv_f32_2_to_u8.output);
 }
+
+void publish_motor_commands(float *cmds)
+{
+	union {
+		uint16_t input[4];
+		uint8_t output[8];
+	} conv_ui16_4_to_u8;	
+
+	conv_ui16_4_to_u8.input[0] = (uint16_t)(cmds[0]*(float)65535.0f);
+	conv_ui16_4_to_u8.input[1] = (uint16_t)(cmds[1]*(float)65535.0f);
+	conv_ui16_4_to_u8.input[2] = (uint16_t)(cmds[2]*(float)65535.0f);
+	conv_ui16_4_to_u8.input[3] = (uint16_t)(cmds[3]*(float)65535.0f);
+
+	canTransmit(canREG3, canMESSAGE_BOX6, conv_ui16_4_to_u8.output);
+}

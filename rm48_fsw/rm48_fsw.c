@@ -362,6 +362,7 @@ void flight_app(int argc, char** argv)
 	float yaw_adj = 0.0f;
 
 	float bno_attitude[3];
+	float mcmds[4];
 
 	while(1)
 	{
@@ -385,10 +386,19 @@ void flight_app(int argc, char** argv)
 				m3_cmd = throttle_value_common_local - roll_adj*0.5f - pitch_adj*0.5f + yaw_adj;
 				m4_cmd = throttle_value_common_local + roll_adj*0.5f - pitch_adj*0.5f - yaw_adj;
 
-				check_saturation(&m1_cmd, 0.01f, 0.98f);
-				check_saturation(&m2_cmd, 0.01f, 0.98f);
-				check_saturation(&m3_cmd, 0.01f, 0.98f);
-				check_saturation(&m4_cmd, 0.01f, 0.98f);
+				// check_saturation(&m1_cmd, 0.01f, 0.98f);
+				// check_saturation(&m2_cmd, 0.01f, 0.98f);
+				// check_saturation(&m3_cmd, 0.01f, 0.98f);
+				// check_saturation(&m4_cmd, 0.01f, 0.98f);
+				QuadRotor_motor1_setDuty(m1_cmd);
+				QuadRotor_motor2_setDuty(m2_cmd);
+				QuadRotor_motor3_setDuty(m3_cmd);
+				QuadRotor_motor4_setDuty(m4_cmd);
+				mcmds[0]=m1_cmd;
+				mcmds[1]=m2_cmd;
+				mcmds[2]=m3_cmd;
+				mcmds[3]=m4_cmd;
+				publish_motor_commands(&mcmds[0]);
 			
 			_enable_interrupts();
 		}
@@ -418,6 +428,9 @@ void flight_app(int argc, char** argv)
 			{
 				reset_flag(flag_100hz);
 				get_last_attitude(&bno_attitude[0]);
+				roll_rate_cmd_local = 1.8f*((roll_cmd*0.3f)-degrees_to_radians(bno_attitude[0]));// sd.state_vector.roll);
+				pitch_rate_cmd_local = 1.8f*((pitch_cmd*-0.3f)-degrees_to_radians(bno_attitude[1]));//sd.state_vector.pitch); // Since pitch stick is opposite pitch angle convention for aircraft body frame
+				yaw_rate_cmd_local = 0.3f*(yaw_cmd*-4.5f);//-degrees_to_radians(sd.imu_data.gyro_data[2]));
 			}
 			
 			
@@ -468,9 +481,9 @@ void flight_app(int argc, char** argv)
 
 				// Simple outerloop update :)
 				// error = command-measurement
-				roll_rate_cmd_local = 1.8f*((roll_cmd*0.3f)-degrees_to_radians(bno_attitude[0]));// sd.state_vector.roll);
-				pitch_rate_cmd_local = 1.8f*((pitch_cmd*-0.3f)-degrees_to_radians(bno_attitude[1]));//sd.state_vector.pitch); // Since pitch stick is opposite pitch angle convention for aircraft body frame
-				yaw_rate_cmd_local = 0.3f*(yaw_cmd*-4.5f);//-degrees_to_radians(sd.imu_data.gyro_data[2]));
+				// roll_rate_cmd_local = 1.8f*((roll_cmd*0.3f)- sd.state_vector.roll);
+				// pitch_rate_cmd_local = 1.8f*((pitch_cmd*-0.3f)-sd.state_vector.pitch); // Since pitch stick is opposite pitch angle convention for aircraft body frame
+				// yaw_rate_cmd_local = 0.3f*(yaw_cmd*-4.5f);//-degrees_to_radians(sd.imu_data.gyro_data[2]));
 
 
 				_disable_interrupts();

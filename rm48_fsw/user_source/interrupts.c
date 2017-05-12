@@ -53,8 +53,8 @@ void sci2_rx_callback(void)
 	#endif
 }
 
-extern float m1_cmd, m2_cmd, m3_cmd, m4_cmd;
-extern uint8_t update_cmds;
+// extern float m1_cmd, m2_cmd, m3_cmd, m4_cmd;
+extern volatile uint8_t update_cmds;
 
 void pwm_callback(hetBASE_t* hetREG, uint32 pwm)
 {
@@ -80,10 +80,10 @@ void pwm_callback(hetBASE_t* hetREG, uint32 pwm)
 			// QuadRotor_motor3_setDuty((float)motor_output_commands[2]);
 			// QuadRotor_motor4_setDuty((float)motor_output_commands[3]);
 		// }
-		QuadRotor_motor1_setDuty(m1_cmd);
-		QuadRotor_motor2_setDuty(m2_cmd);
-		QuadRotor_motor3_setDuty(m3_cmd);
-		QuadRotor_motor4_setDuty(m4_cmd);
+		// QuadRotor_motor1_setDuty(m1_cmd);
+		// QuadRotor_motor2_setDuty(m2_cmd);
+		// QuadRotor_motor3_setDuty(m3_cmd);
+		// QuadRotor_motor4_setDuty(m4_cmd);
 		update_cmds = 1;
 	}
 }
