@@ -120,7 +120,7 @@ def main():
 				if firstPacket:
 					t0 = time.time()
 					firstPacket = False
-				fp.write("%0.3f"%(time.time()-t0)+", %0.2f"%att_msg[0]/16+", %0.2f"%att_msg[1]/16+", %0.2f\n"%att_msg[2]/16)
+				fp.write("%0.3f"%(time.time()-t0)+", %0.2f"%att_msg[0]/16.+", %0.2f"%att_msg[1]/16.+", %0.2f\n"%att_msg[2]/16.)
 				if verboseMode:
 					print("Roll: %0.2f"%att_msg[0]+", Pitch: %0.2f"%att_msg[1]+", Yaw: %0.2f"%att_msg[2])
 				

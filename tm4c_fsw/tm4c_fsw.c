@@ -371,7 +371,7 @@ static void can_send_databuf(uint8_t* buf, int len, sensor_msg m_type)
             sCANMessage.ui32MsgID = 0x00000002;
             break;
         case BNO_ATT_MSG:
-            sCANMessage.ui32MsgID = 0x0000000A;
+            sCANMessage.ui32MsgID = 0x0000000B;
             break;
     }
     CANMessageSet(CAN0_BASE, 1, &sCANMessage, MSG_OBJ_TYPE_TX);
