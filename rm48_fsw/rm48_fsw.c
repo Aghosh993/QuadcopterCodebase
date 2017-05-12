@@ -361,6 +361,8 @@ void flight_app(int argc, char** argv)
 	float pitch_adj = 0.0f;
 	float yaw_adj = 0.0f;
 
+	float bno_attitude[3];
+
 	while(1)
 	{
 		gnc_enable();
@@ -411,6 +413,12 @@ void flight_app(int argc, char** argv)
 				// printf("%f %f\r\n", roll_cmd, pitch_cmd);
 				// printf("Roll: %f, Pitch: %f\r\n", sd.state_vector.roll, sd.state_vector.pitch);
 			}
+
+			if(get_flag_state(flag_100hz) == STATE_PENDING)
+			{
+				reset_flag(flag_100hz);
+				get_last_attitude(&bno_attitude[0]);
+			}
 			
 			
 			// For telemetry purposes:
@@ -436,7 +444,7 @@ void flight_app(int argc, char** argv)
 
 				// Send telemetry items as configured:
 				#ifdef SEND_CAN_ROLL_PITCH
-					publish_roll_pitch(radians_to_degrees(sd.state_vector.roll), radians_to_degrees(sd.state_vector.pitch));
+					publish_roll_pitch(bno_attitude[0],bno_attitude[1]);//radians_to_degrees(sd.state_vector.roll), radians_to_degrees(sd.state_vector.pitch));
 				#endif
 
 				#ifdef SEND_MPU_IMU_TELEMETRY
@@ -460,8 +468,8 @@ void flight_app(int argc, char** argv)
 
 				// Simple outerloop update :)
 				// error = command-measurement
-				roll_rate_cmd_local = 1.8f*((roll_cmd*0.3f)-sd.state_vector.roll);
-				pitch_rate_cmd_local = 1.8f*((pitch_cmd*-0.3f)-sd.state_vector.pitch); // Since pitch stick is opposite pitch angle convention for aircraft body frame
+				roll_rate_cmd_local = 1.8f*((roll_cmd*0.3f)-degrees_to_radians(bno_attitude[0]));// sd.state_vector.roll);
+				pitch_rate_cmd_local = 1.8f*((pitch_cmd*-0.3f)-degrees_to_radians(bno_attitude[1]));//sd.state_vector.pitch); // Since pitch stick is opposite pitch angle convention for aircraft body frame
 				yaw_rate_cmd_local = 0.3f*(yaw_cmd*-4.5f);//-degrees_to_radians(sd.imu_data.gyro_data[2]));
 
 
