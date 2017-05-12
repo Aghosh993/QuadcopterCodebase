@@ -72,6 +72,15 @@ int get_scaled_imu_data(imu_scaled_data_struct* buffer)
 		buffer->gyro_data[AXIS_YAW] *= (float)GYRO_YAW_SIGN;
 
 		buffer->temp_sensor_deg_c = (float)(data_buf.temp_sensor_data - (int16_t)TEMP_OFFSET) * (float)TEMP_SCALE + 21.0f;
+
+		buffer->gyro_data[0] -= buffer->gyro_bias[0];
+		buffer->gyro_data[1] -= buffer->gyro_bias[1];
+		buffer->gyro_data[2] -= buffer->gyro_bias[2];
+
+		buffer->accel_data[0] -= buffer->accel_bias[0];
+		buffer->accel_data[1] -= buffer->accel_bias[1];
+		buffer->accel_data[2] -= buffer->accel_bias[2];
+
 		return 0; // Return READ_SUCCESS
 	}
 	return -1; // Failure

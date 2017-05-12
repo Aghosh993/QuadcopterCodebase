@@ -15,7 +15,7 @@
 #include "telem_config.h"
 #include "vehicle_gnc.h"
 #include "serial_comms_highlevel.h"
-#include "can_comms.h"
+// #include "can_comms.h"
 #include "cpu_hal_interface.h"
 #include "system_shell.h"	
 #include "can_comms.h"
@@ -66,6 +66,8 @@ volatile uint8_t flag_100hz;
 volatile uint8_t flag_200hz;
 volatile uint8_t flag_1000hz;
 
+volatile float m1_cmd, m2_cmd, m3_cmd, m4_cmd;
+volatile uint8_t update_cmds;
 /*
   Apps defined for the various commands:
  */
@@ -254,8 +256,27 @@ void calibrate_esc(int argc, char** argv)
 	}
 }
 
+static void check_saturation(float *num, float lower, float upper)
+{
+	if(*num > upper)
+	{
+		*num = upper;
+	}
+	if(*num < lower)
+	{
+		*num = lower;
+	}
+}
+
 void flight_app(int argc, char** argv)
 {
+	m1_cmd = 0.0f;
+	m2_cmd = 0.0f;
+	m3_cmd = 0.0f;
+	m4_cmd = 0.0f;
+
+	update_cmds = 0U;
+
 	// Initialize PWM channels for 4 motors and set all motors to stop by default:
 	QuadRotor_PWM_init();
 	QuadRotor_motor1_start();
@@ -300,8 +321,8 @@ void flight_app(int argc, char** argv)
 	board_led_off(LED2);
 
 	gnc_init();
-	gnc_raw_data rd;
-	gnc_state_data sd;
+	observation rd;
+	complementary_filter_struct sd;
 
 	board_led_off(LED1);
 	timekeeper_delay(1000U);
@@ -316,51 +337,6 @@ void flight_app(int argc, char** argv)
 	float mission_time_sec = 0.0f;
 	int32_t mission_time_msec = 0;
 
-	#ifdef TEST_TELEM
-		float flt_test[2];
-		flt_test[0] = 0.0f;
-		flt_test[1] = 0.0f;
-
-		int32_t int_test[2];
-		int_test[0] = 0;
-		int_test[1] = 0;
-
-		uint8_t *str_test[2] = {"hello0", "hello1"};
-
-		while(1)
-		{
-			mission_time_sec = get_mission_time_sec();
-			mission_time_msec = get_mission_time_msec();
-			flt_test[0] = mission_time_sec;
-			int_test[0] = mission_time_msec;
-
-			if(flt_test[1] < 1.0f)
-			{
-				flt_test[1] += 0.01f;
-			}
-			else
-			{
-				flt_test[1] = 0.0f;
-			}
-
-			if(int_test[1] < 100)
-			{
-				int_test[1] += 1;
-			}
-			else
-			{
-				int_test[1] = 0;
-			}
-
-			send_telem_msg_n_floats_blocking(&telem0, (uint8_t *)"flt", 3, flt_test, 2);
-			send_telem_msg_n_ints_blocking(&telem0, (uint8_t *)"int", 3, int_test, 2);
-			send_telem_msg_string_blocking(&telem0, (uint8_t *)"str0", 4, str_test[0], 6);
-			send_telem_msg_string_blocking(&telem0, (uint8_t *)"str1", 4, str_test[1], 6);
-
-			timekeeper_delay(5U);
-		}
-	#endif
-
 	init_rc_inputs(&rc_data, 0);
 	
 	float roll_rate_cmd_local, pitch_rate_cmd_local, yaw_rate_cmd_local, throttle_value_common_local;
@@ -369,28 +345,51 @@ void flight_app(int argc, char** argv)
 	yaw_rate_cmd_local = 0.0f;
 	throttle_value_common_local = 0.0f;
 
-	uint8_t msg_buf[30];
 	uint8_t i = 0U;
-	uint32_t bytes_read = 0U;
-
-	float height_sensor_reading = 0.0f;
 
 	height_kalman_data_struct height_estimator;
 	gnc_height_kalman_struct_init(&height_estimator, 0.005f, 0.05f);
+	float height_sensor_reading = 0.0f;
 	float height_closedloop_throttle_cmd = 0.0f;
 	float max_height_cmd = 2.0f;
-
 	float h_est_telem_msg[8] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
 
 	float heading_sensor_reading = 0.0f;
-
-	uint8_t bno_bytes_read = 0U;
-	int bno_bytes_total = 0U;
 	float yaw_sensor_reading = 0.0f;
+
+	float roll_adj = 0.0f;
+	float pitch_adj = 0.0f;
+	float yaw_adj = 0.0f;
 
 	while(1)
 	{
 		gnc_enable();
+		if(update_cmds)
+		{
+			/* 
+				To actually query the IMU for raw data and populate internal GNC data structs.
+				This function call is blocking and takes about 600 us to run.
+			 */
+			gnc_get_vehicle_state();
+			_disable_interrupts();
+
+				update_cmds = 0;
+				roll_adj = 0.3f*(roll_rate_cmd-degrees_to_radians(sd.imu_data.gyro_data[0]));
+				pitch_adj = 0.3f*(pitch_rate_cmd-degrees_to_radians(sd.imu_data.gyro_data[1]));
+				yaw_adj = 0.2f*(yaw_rate_cmd-degrees_to_radians(sd.imu_data.gyro_data[2]));
+
+				m1_cmd = throttle_value_common_local + roll_adj*0.5f + pitch_adj*0.5f + yaw_adj;
+				m2_cmd = throttle_value_common_local - roll_adj*0.5f + pitch_adj*0.5f - yaw_adj;
+				m3_cmd = throttle_value_common_local - roll_adj*0.5f - pitch_adj*0.5f + yaw_adj;
+				m4_cmd = throttle_value_common_local + roll_adj*0.5f - pitch_adj*0.5f - yaw_adj;
+
+				check_saturation(&m1_cmd, 0.01f, 0.98f);
+				check_saturation(&m2_cmd, 0.01f, 0.98f);
+				check_saturation(&m3_cmd, 0.01f, 0.98f);
+				check_saturation(&m4_cmd, 0.01f, 0.98f);
+			
+			_enable_interrupts();
+		}
 		/*
 			Synchronous (i.e. cyclic) events scheduled by timer (RTI or PWM) subsystem:
 		 */
@@ -409,42 +408,37 @@ void flight_app(int argc, char** argv)
 			{
 				reset_flag(flag_10hz);				
 				rc_input_validity_watchdog_callback(); // Check if sufficient number of RC rising edges have occurred in last 100 ms
-
-				printf("Roll: %f, Pitch: %f\r\n", sd.roll, sd.pitch);
+				// printf("%f %f\r\n", roll_cmd, pitch_cmd);
+				// printf("Roll: %f, Pitch: %f\r\n", sd.state_vector.roll, sd.state_vector.pitch);
 			}
 			
-			/* 
-				To actually query the IMU for raw data and populate internal GNC data structs.
-				This function call is blocking and takes about 600 us to run.
-			 */
-			gnc_get_vehicle_state();
-			
-			#ifdef SEND_CAN_ROLL_PITCH
-				publish_roll_pitch(sd.roll, sd.pitch);
-			#endif			
 			
 			// For telemetry purposes:
 			gnc_get_raw_sensor_data(&rd);
 			gnc_get_state_vector_data(&sd);
-			att_data[0] = sd.roll;
-			att_data[1] = sd.pitch;
+			att_data[0] = sd.state_vector.roll;
+			att_data[1] = sd.state_vector.pitch;
 
-			sensor_data[0] = rd.x_accel;
-			sensor_data[1] = rd.y_accel;
-			sensor_data[2] = rd.z_accel;
+			sensor_data[0] = 0.0f;//rd.x_accel;
+			sensor_data[1] = 0.0f;//rd.y_accel;
+			sensor_data[2] = 0.0f;//rd.z_accel;
 
-			sensor_data[3] = rd.roll_gyro;
-			sensor_data[4] = rd.pitch_gyro;
-			sensor_data[5] = rd.yaw_gyro;
+			sensor_data[3] = 0.0f;//rd.roll_gyro;
+			sensor_data[4] = 0.0f;//rd.pitch_gyro;
+			sensor_data[5] = 0.0f;//rd.yaw_gyro;
 			
 			if(get_flag_state(flag_200hz) == STATE_PENDING)
 			{
+				board_led_toggle(LED1);
+
 				// Reset flag for next cycle:				
 				reset_flag(flag_200hz);
 
-				board_led_toggle(LED1);
-
 				// Send telemetry items as configured:
+				#ifdef SEND_CAN_ROLL_PITCH
+					publish_roll_pitch(radians_to_degrees(sd.state_vector.roll), radians_to_degrees(sd.state_vector.pitch));
+				#endif
+
 				#ifdef SEND_MPU_IMU_TELEMETRY
 					send_telem_msg_n_floats_blocking(&telem0, (uint8_t *)"imu", 3, sensor_data, 6);
 				#endif
@@ -453,7 +447,7 @@ void flight_app(int argc, char** argv)
 				#endif
 
 				// Run height estimation Kalman filter:
-				gnc_height_kalman_update(&height_estimator, height_sensor_reading, gnc_get_vertical_dynamic_acceleration(), sd.roll, sd.pitch);
+				gnc_height_kalman_update(&height_estimator, height_sensor_reading, gnc_get_vertical_dynamic_acceleration(), sd.state_vector.roll, sd.state_vector.pitch);
 
 				// Obtain new height throttle command:
 				height_closedloop_throttle_cmd = gnc_get_height_controller_throttle_command(throttle_value_common_local*max_height_cmd, 
@@ -461,8 +455,15 @@ void flight_app(int argc, char** argv)
 																						height_estimator.vertical_velocity_estimated);
 
 				// Run GNC angular outer loop control to generate rate commands for inner loop:
-				gnc_vehicle_stabilization_outerloop_update(roll_cmd, pitch_cmd, yaw_cmd,
-															&roll_rate_cmd_local, &pitch_rate_cmd_local, &yaw_rate_cmd_local);
+				// gnc_vehicle_stabilization_outerloop_update(roll_cmd, pitch_cmd, yaw_cmd,
+				// 											&roll_rate_cmd_local, &pitch_rate_cmd_local, &yaw_rate_cmd_local);
+
+				// Simple outerloop update :)
+				// error = command-measurement
+				roll_rate_cmd_local = 1.8f*((roll_cmd*0.3f)-sd.state_vector.roll);
+				pitch_rate_cmd_local = 1.8f*((pitch_cmd*-0.3f)-sd.state_vector.pitch); // Since pitch stick is opposite pitch angle convention for aircraft body frame
+				yaw_rate_cmd_local = 0.3f*(yaw_cmd*-4.5f);//-degrees_to_radians(sd.imu_data.gyro_data[2]));
+
 
 				_disable_interrupts();
 					roll_rate_cmd = roll_rate_cmd_local;
@@ -489,7 +490,6 @@ void flight_app(int argc, char** argv)
 						send_telem_msg_n_floats_blocking(&telem0, (uint8_t *)"sf11c", 5, &height_sensor_reading, 1);
 					#endif
 					
-					board_led_toggle(LED1);
 					height_sensor_reading = get_last_can_height_msg();
 					yaw_sensor_reading = get_last_can_heading_msg();
 				}
@@ -529,29 +529,9 @@ void flight_app(int argc, char** argv)
 
 						get_rc_input_values(&rc_data);
 
-						// if(get_ch5_mode(rc_data)==MODE_FAILSAFE)
-						// {
-						// 	gnc_integral_disable();
-						// 	set_controller_mode(MODE_ANGULAR_POSITION_CONTROL);
-						// }
-						// else
-						// {
-						// 	gnc_integral_enable();
-						// 	set_controller_mode(MODE_ANGULAR_RATE_CONTROL);
-						// }
-
-						gnc_integral_disable();
-						set_controller_mode(MODE_ANGULAR_POSITION_CONTROL);
-
 						if(rc_data.mode_switch_channel_validity == CHANNEL_VALID)
 						{
 							#ifdef SEND_RC_INPUT_TELEMETRY
-								// send_telem_msg_string_blocking(&telem0, (uint8_t *)"rcvalid", 7, "TRUE\r\n", 6);
-								// send_telem_msg_n_floats_blocking(&telem0, (uint8_t *)"roll", 4, &(rc_data.roll_channel_value), 1);
-								// send_telem_msg_n_floats_blocking(&telem0, (uint8_t *)"pitch", 5, &(rc_data.pitch_channel_value), 1);
-								// send_telem_msg_n_floats_blocking(&telem0, (uint8_t *)"yaw", 3, &(rc_data.yaw_channel_value), 1);
-								// send_telem_msg_n_floats_blocking(&telem0, (uint8_t *)"height", 6, &(rc_data.vertical_channel_value), 1);
-
 								if(get_ch5_mode(rc_data) == MODE_NORMAL)
 								{
 									send_telem_msg_string_blocking(&telem0, (uint8_t *)"CH5", 3, (uint8_t *)"Normal", 6);
@@ -636,7 +616,7 @@ void test_comp_filter(int argc, char** argv)
 
 	complementary_filter_struct s;
 	init_complementary_filter(&s, SCALE_2G, SCALE_250_DPS, SCALE_1POINT3_GAUSS,
-	                          0.010f, 0.8f, 1.0f);
+	                          0.010f, 0.8f, 1.0f, MODE_2NDORDER_COMPFILTER);
 
 	init_rc_inputs(&rc_data, 0);
 
@@ -670,7 +650,7 @@ void test_comp_filter(int argc, char** argv)
 			{
 				reset_flag(flag_10hz);
 				rc_input_validity_watchdog_callback();
-				// printf("Roll: %f Pitch: %f\r\n", radians_to_degrees(s.state_vector.roll), radians_to_degrees(s.state_vector.pitch));
+				printf("Roll: %f Pitch: %f\r\n", radians_to_degrees(s.state_vector.roll), radians_to_degrees(s.state_vector.pitch));
 				// printf("Roll: %f Pitch: %f\r\n", radians_to_degrees(s.state_vector.roll_rate), radians_to_degrees(s.state_vector.pitch_rate));
 			}
 		}
@@ -682,7 +662,7 @@ void test_comp_filter(int argc, char** argv)
 	}
 }
 
-void main(void)
+int main(void)
 {
 	/*Globally disable R4 IRQs AND FIQs:*/
 	_disable_interrupts();
@@ -744,7 +724,7 @@ void main(void)
 
 	_enable_interrupts();
 
-	// flight_app(0, NULL);
+	flight_app(0, NULL);
 
 	while(1)
 	{

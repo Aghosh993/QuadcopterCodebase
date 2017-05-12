@@ -53,29 +53,37 @@ void sci2_rx_callback(void)
 	#endif
 }
 
+extern float m1_cmd, m2_cmd, m3_cmd, m4_cmd;
+extern uint8_t update_cmds;
+
 void pwm_callback(hetBASE_t* hetREG, uint32 pwm)
 {
-	double motor_output_commands[4];
+	// double motor_output_commands[4];
 	
-	motor_output_commands[0] = 0.0f;
-	motor_output_commands[1] = 0.0f;
-	motor_output_commands[2] = 0.0f;
-	motor_output_commands[3] = 0.0f;
+	// motor_output_commands[0] = 0.0f;
+	// motor_output_commands[1] = 0.0f;
+	// motor_output_commands[2] = 0.0f;
+	// motor_output_commands[3] = 0.0f;
 
 	if(hetREG == hetREG1 && pwm == pwm0)
 	{
 		/*
 			Run GNC inner loop to generate 4 motor PWM commands:
 		 */
-		if(gnc_enabled())
-		{
-			gnc_vehicle_stabilization_innerloop_update(roll_rate_cmd, pitch_rate_cmd, yaw_rate_cmd,
-														throttle_value_common,
-														motor_output_commands);
-			QuadRotor_motor1_setDuty((float)motor_output_commands[0]);                             
-			QuadRotor_motor2_setDuty((float)motor_output_commands[1]);
-			QuadRotor_motor3_setDuty((float)motor_output_commands[2]);
-			QuadRotor_motor4_setDuty((float)motor_output_commands[3]);
-		}
+		// if(gnc_enabled())
+		// {
+			// gnc_vehicle_stabilization_innerloop_update(roll_rate_cmd, pitch_rate_cmd, yaw_rate_cmd,
+			// 											throttle_value_common,
+			// 											motor_output_commands);
+			// QuadRotor_motor1_setDuty((float)motor_output_commands[0]);                             
+			// QuadRotor_motor2_setDuty((float)motor_output_commands[1]);
+			// QuadRotor_motor3_setDuty((float)motor_output_commands[2]);
+			// QuadRotor_motor4_setDuty((float)motor_output_commands[3]);
+		// }
+		QuadRotor_motor1_setDuty(m1_cmd);
+		QuadRotor_motor2_setDuty(m2_cmd);
+		QuadRotor_motor3_setDuty(m3_cmd);
+		QuadRotor_motor4_setDuty(m4_cmd);
+		update_cmds = 1;
 	}
 }

@@ -14,7 +14,7 @@
 
 #include "basic_pid_controller.h"
 #include "iir_filters.h"
-#include "comp_filter.h"
+#include "complementary_filter.h"
 
 /*
  * Comment in/out the following lines to
@@ -79,12 +79,12 @@
 #define MOTOR_MIN_CMD 0.0f
 #define MOTOR_MAX_CMD 1.0f
 
-#define ANGULAR_RATE_CONTROL_DT			0.004f						// 250 Hz
+#define ANGULAR_RATE_CONTROL_DT			0.0025f						// 400 Hz
 	#define ROLL_RATE_PID_DT 			ANGULAR_RATE_CONTROL_DT
 	#define PITCH_RATE_PID_DT 			ANGULAR_RATE_CONTROL_DT
 	#define YAW_RATE_PID_DT				ANGULAR_RATE_CONTROL_DT
 
-#define ANGULAR_POSITION_CONTROL_DT		0.005f						// 125 Hz
+#define ANGULAR_POSITION_CONTROL_DT		0.005f						// 200 Hz
 	#define ROLL_PID_DT					ANGULAR_POSITION_CONTROL_DT
 	#define PITCH_PID_DT 				ANGULAR_POSITION_CONTROL_DT
 	#define YAW_PID_DT 					ANGULAR_POSITION_CONTROL_DT
@@ -176,7 +176,7 @@ void check_output_saturation(double* motor_output_buffer);
  * on user/code-driven high-level input of desired vehicle attitude:
  */
 
-void generate_rate_commands(filtered_quadrotor_state* ap_st, imu_scaled_data_struct* data, float joy_x, float joy_y, float joy_yaw, float* roll_rate_output, float* pitch_rate_output, float* yaw_rate_output);
+void generate_rate_commands(complementary_filter_struct* ap_st, imu_scaled_data_struct* data, float joy_x, float joy_y, float joy_yaw, float* roll_rate_output, float* pitch_rate_output, float* yaw_rate_output);
 void rate_controller_update(double * c_props, imu_scaled_data_struct* data, float roll_rate_cmd, float pitch_rate_cmd, float yaw_rate_cmd, float throttle_openloop_commanded);
 
 /*

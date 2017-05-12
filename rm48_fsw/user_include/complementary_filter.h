@@ -14,6 +14,14 @@
 	#include "imu_test_harness.h"
 #endif
 
+#define FIRSTORDER_ACCEL_WEIGHT		0.02f
+#define FIRSTORDER_GYRO_WEIGHT		0.98f
+
+typedef enum {
+	MODE_1STORDER_COMPFILTER,
+	MODE_2NDORDER_COMPFILTER
+} filter_mode;
+
 /*
 	Conventions: 
 		+x: Forward	
@@ -70,10 +78,12 @@ typedef struct {
 	float k_P;
 	float k_I;
 	float filter_dt_seconds;
+
+	filter_mode m;
 } complementary_filter_struct;
 
 int init_complementary_filter(complementary_filter_struct *s, ACC_SCALE a, GYRO_SCALE g, MAG_SCALE m, 
-								float dt_sec, float omega_natural, float damping_ratio);
+								float dt_sec, float omega_natural, float damping_ratio, filter_mode fm);
 void update_complementary_filter(complementary_filter_struct *s);
 float degrees_to_radians(float deg);
 float radians_to_degrees(float rad);

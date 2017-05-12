@@ -65,37 +65,66 @@ static float pitch_accel(complementary_filter_struct *s)
 
 static void update_roll(complementary_filter_struct *s)
 {
-	float error;
-	if(fabs(s->state_vector.pitch) < 80.0f)
+	float error, adj;
+	switch(s->m)
 	{
-		error = roll_accel(s) - s->state_vector.roll;
+		case MODE_1STORDER_COMPFILTER:
+			s->state_vector.roll_rate = degrees_to_radians(s->imu_data.gyro_data[0]);
+			if(fabs(s->state_vector.pitch) < 80.0f)
+			{
+				s->state_vector.roll = FIRSTORDER_GYRO_WEIGHT*(s->state_vector.roll + s->state_vector.roll_rate*s->filter_dt_seconds) + FIRSTORDER_ACCEL_WEIGHT*roll_accel(s);				
+			}
+			else
+			{
+				s->state_vector.roll += s->state_vector.roll_rate*s->filter_dt_seconds; // Just use the gyro through a singularity
+			}
+			break;
+
+		case MODE_2NDORDER_COMPFILTER:
+			if(fabs(s->state_vector.pitch) < 80.0f)
+			{
+				error = roll_accel(s) - s->state_vector.roll;
+			}
+			else
+			{
+				error = 0.0f; // Just use the gyro through a singularity
+			}
+
+			s->roll_integral += error * s->filter_dt_seconds;
+
+			adj = error * s->k_P +  s->roll_integral * s->k_I;
+
+			s->state_vector.roll_rate = degrees_to_radians(s->imu_data.gyro_data[0]) + adj;
+			s->state_vector.roll += s->state_vector.roll_rate * s->filter_dt_seconds;
+			break;
 	}
-	else
-	{
-		error = 0.0f; // Just use the gyro through a singularity
-	}
-
-	s->roll_integral += error * s->filter_dt_seconds;
-
-	float adj = error * s->k_P +  s->roll_integral * s->k_I;
-
-	s->state_vector.roll_rate = degrees_to_radians(s->imu_data.gyro_data[0]) + adj;
-	s->state_vector.roll += s->state_vector.roll_rate * s->filter_dt_seconds;
 }
 
 static void update_pitch(complementary_filter_struct *s)
 {
-	float error = pitch_accel(s) - s->state_vector.pitch;
-	s->pitch_integral += error * s->filter_dt_seconds;
+	float error, adj;
 
-	float adj = error * s->k_P +  s->pitch_integral * s->k_I;
+	switch(s->m)
+	{
+		case MODE_1STORDER_COMPFILTER:
+			s->state_vector.pitch_rate = degrees_to_radians(s->imu_data.gyro_data[1]);
+			s->state_vector.pitch = FIRSTORDER_GYRO_WEIGHT*(s->state_vector.pitch + s->state_vector.pitch_rate*s->filter_dt_seconds) + FIRSTORDER_ACCEL_WEIGHT*pitch_accel(s);
+			break;
 
-	s->state_vector.pitch_rate = degrees_to_radians(s->imu_data.gyro_data[1]) + adj;
-	s->state_vector.pitch += s->state_vector.pitch_rate * s->filter_dt_seconds;
+		case MODE_2NDORDER_COMPFILTER:
+			error = pitch_accel(s) - s->state_vector.pitch;
+			s->pitch_integral += error * s->filter_dt_seconds;
+
+			adj = error * s->k_P +  s->pitch_integral * s->k_I;
+
+			s->state_vector.pitch_rate = degrees_to_radians(s->imu_data.gyro_data[1]) + adj;
+			s->state_vector.pitch += s->state_vector.pitch_rate * s->filter_dt_seconds;
+			break;
+	}
 }
 
 int init_complementary_filter(complementary_filter_struct *s, ACC_SCALE a, GYRO_SCALE g, MAG_SCALE m, 
-								float dt_sec, float omega_natural, float damping_ratio)
+								float dt_sec, float omega_natural, float damping_ratio, filter_mode fm)
 {
 	s->state_vector.roll = 0.0f;
 	s->state_vector.pitch = 0.0f;
@@ -137,13 +166,15 @@ int init_complementary_filter(complementary_filter_struct *s, ACC_SCALE a, GYRO_
 	s->roll_integral = 0.0f;
 	s->pitch_integral = 0.0f;
 
+	s->m = fm;
+
 	return initialize_imu(a, g, m, &(s->imu_data));
 }
 
 void update_complementary_filter(complementary_filter_struct *s)
 {
 	get_scaled_imu_data(&(s->imu_data));
-	scale_vector(&(s->imu_data.accel_data[0]), 9.810f, 3);
+	scale_vector(&(s->imu_data.accel_data[0]), 9.810f, 3); // Re-normalize accelerometer data to have a magnitude of 1G
 	update_pitch(s);
 	update_roll(s);
 }

@@ -3,11 +3,12 @@
 
 #include "imu.h"
 #include "iir_filters.h"
-#include "comp_filter.h"
+#include "complementary_filter.h"
 #include "vehicle_pid_controller.h"
 
 #include <stdint.h>
 #include <math.h>
+#include <stdlib.h>
 
 #define SF10_UGV_THRESHOLD	0.18f // in meters, was 0.1f in last flight test
 #define UGV_HEIGHT			0.50f // in meters
@@ -56,36 +57,36 @@ typedef struct {
 	float g21;
 } height_kalman_data_struct;
 
-typedef struct {
-	float roll_gyro;
-	float pitch_gyro;
-	float yaw_gyro;
+// typedef struct {
+// 	float roll_gyro;
+// 	float pitch_gyro;
+// 	float yaw_gyro;
 
-	float x_accel;
-	float y_accel;
-	float z_accel;
+// 	float x_accel;
+// 	float y_accel;
+// 	float z_accel;
 
-	float height_lidar;
+// 	float height_lidar;
 
-	float x_vel_flow;
-	float y_vel_flow;
-	float height_flow_sensor;
+// 	float x_vel_flow;
+// 	float y_vel_flow;
+// 	float height_flow_sensor;
 
-	float bno055_heading;
-} gnc_raw_data;
+// 	float bno055_heading;
+// } gnc_raw_data;
 
-typedef struct {
-	float roll;
-	float pitch;
-	float yaw;
+// typedef struct {
+// 	float roll;
+// 	float pitch;
+// 	float yaw;
 
-	float roll_rate;
-	float pitch_rate;
-	float yaw_rate;
+// 	float roll_rate;
+// 	float pitch_rate;
+// 	float yaw_rate;
 
-	float height;
-	float vertical_velocity;
-} gnc_state_data;
+// 	float height;
+// 	float vertical_velocity;
+// } gnc_state_data;
 
 void gnc_init(void);
 
@@ -121,8 +122,8 @@ float gnc_get_height_controller_throttle_command(float height_commanded, float h
 // 								float height_input, float current_roll_degrees, float current_pitch_degrees);
 // void px4flow_get_bias(int16_t* bias_x, int16_t* bias_y);
 
-void gnc_get_raw_sensor_data(gnc_raw_data *ret);
-void gnc_get_state_vector_data(gnc_state_data *ret);
+void gnc_get_raw_sensor_data(observation *ret);
+void gnc_get_state_vector_data(complementary_filter_struct *ret);
 
 float gnc_get_vertical_dynamic_acceleration(void);
 

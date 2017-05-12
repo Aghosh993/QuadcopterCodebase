@@ -84,6 +84,41 @@ static int32_t mpu9250_read_multiple_registers(uint8_t reg_base_address, uint8_t
     return i;
 }
 
+static void do_bias_calculation(imu_scaled_data_struct *imu_data)
+{
+	uint16_t i = 0U;
+
+	float roll_gyro_running_sum = 0.0f;
+	float pitch_gyro_running_sum = 0.0f;
+	float yaw_gyro_running_sum = 0.0f;
+
+	float x_accelerometer_running_sum = 0.0f;
+	float y_accelerometer_running_sum = 0.0f;
+	float z_accelerometer_running_sum = 0.0f;
+
+	for(i=0U; i<BIAS_CALC_NUM_SAMPLES; ++i)
+	{
+		get_scaled_imu_data(imu_data);
+
+		roll_gyro_running_sum += imu_data->gyro_data[AXIS_ROLL];
+		pitch_gyro_running_sum += imu_data->gyro_data[AXIS_PITCH];
+		yaw_gyro_running_sum += imu_data->gyro_data[AXIS_YAW];
+
+		x_accelerometer_running_sum += imu_data->accel_data[ACCEL_AXIS_X];
+		y_accelerometer_running_sum += imu_data->accel_data[ACCEL_AXIS_Y];
+		z_accelerometer_running_sum += imu_data->accel_data[ACCEL_AXIS_Z];
+
+		timekeeper_delay((uint16_t)BIAS_CALC_SAMPLE_DT_MS);
+	}
+	imu_data->gyro_bias[0] = (roll_gyro_running_sum/(float)BIAS_CALC_NUM_SAMPLES) - (float)GYRO_Y_IDEAL_READING;
+	imu_data->gyro_bias[1] = (pitch_gyro_running_sum/(float)BIAS_CALC_NUM_SAMPLES) - (float)GYRO_X_IDEAL_READING;
+	imu_data->gyro_bias[2] = (yaw_gyro_running_sum/(float)BIAS_CALC_NUM_SAMPLES) - (float)GYRO_Z_IDEAL_READING;
+
+	imu_data->accel_bias[0] = (x_accelerometer_running_sum/(float)BIAS_CALC_NUM_SAMPLES) - (float)ACCELEROMETER_X_IDEAL_READING;
+	imu_data->accel_bias[1] = (y_accelerometer_running_sum/(float)BIAS_CALC_NUM_SAMPLES) - (float)ACCELEROMETER_Y_IDEAL_READING;
+	imu_data->accel_bias[2] = (z_accelerometer_running_sum/(float)BIAS_CALC_NUM_SAMPLES) - (float)ACCELEROMETER_Z_IDEAL_READING;
+}
+
 void imu_hal_init(void)
 {
 	i2cREG1->MDR = 0x00;
@@ -174,6 +209,8 @@ int initialize_imu(ACC_SCALE a, GYRO_SCALE g, MAG_SCALE m, imu_scaled_data_struc
 	mpu9250_write_register(MPU9250_ACCEL_CONFIG, accel_config_mask);
 	mpu9250_write_register(MPU9250_ACCEL_CONFIG2, accel_config2_mask);
 	mpu9250_write_register(MPU9250_GYRO_CONFIG, gyro_config_mask);
+
+	do_bias_calculation(buf);
 	return 0;
 }
 

@@ -1,31 +1,23 @@
 #include "vehicle_gnc.h"
 
-static volatile  imu_scaled_data_struct imu_data;
-static volatile filtered_quadrotor_state st_vector;
+// static volatile imu_scaled_data_struct imu_data;
+static volatile complementary_filter_struct st_vector;
+// static volatile filtered_quadrotor_state st_vector;
 
 static uint8_t gnc_en;
-
-// static float floating_pt_abs(float n)
-// {
-// 	if(n > 0.0f)
-// 	{
-// 		return n;
-// 	}
-// 	return n * -1.0f;
-// }
-
-// static float start_height;
 
 void gnc_init(void)
 {
 	// imu_hal_init(); // Initialize IMU I2C bus
-	initialize_imu(SCALE_2G, SCALE_250_DPS, SCALE_1POINT3_GAUSS, &imu_data); // Set up IMU registers
-	init_comp_filter(&st_vector);	// Initialize complementary filter data structs/vars
-	do_bias_calculation(&imu_data); // Bias calibration for IMU (gyro+accel)
+	// initialize_imu(SCALE_2G, SCALE_250_DPS, SCALE_1POINT3_GAUSS, &imu_data); // Set up IMU registers
+	// init_comp_filter(&st_vector);	// Initialize complementary filter data structs/vars
+	// do_bias_calculation(&imu_data); // Bias calibration for IMU (gyro+accel)
+	init_complementary_filter(&st_vector, SCALE_2G, SCALE_250_DPS, SCALE_1POINT3_GAUSS,
+	                          0.0025f, 0.085f, 1.0f, MODE_1STORDER_COMPFILTER);
 	
 	controller_init_vars();			// Set controller gains
-	// set_controller_mode(MODE_ANGULAR_POSITION_CONTROL); // Set controller to stabilize (i.e. angular control) mode
-	set_controller_mode(MODE_ANGULAR_RATE_CONTROL); // Set controller to acro (i.e. angular rate control) mode
+	set_controller_mode(MODE_ANGULAR_POSITION_CONTROL); // Set controller to stabilize (i.e. angular control) mode
+	// set_controller_mode(MODE_ANGULAR_RATE_CONTROL); // Set controller to acro (i.e. angular rate control) mode
 	enable_controller(); // Enable all PID loops
 	gnc_disable();
 }
@@ -47,40 +39,22 @@ uint8_t gnc_enabled(void)
 
 void gnc_get_vehicle_state(void)
 {
-	/*
-		Read Gyro, accelerometer and magnetometer sensors,
-		and scale data to engineering (i.e. SI) units.
-	 */
-	if(get_scaled_imu_data(&imu_data) >= 0)
-	{
-		/*
-			Obtain filtered vehicle state through complementary filter.
-		 */
-		get_filtered_vehicle_state(&st_vector, &imu_data);
-	}
+	update_complementary_filter(&st_vector);
 }
 
-void gnc_get_raw_sensor_data(gnc_raw_data *ret)
+void gnc_get_raw_sensor_data(observation *ret)
 {
-	ret->roll_gyro = imu_data.gyro_data[AXIS_ROLL];
-	ret->pitch_gyro = imu_data.gyro_data[AXIS_PITCH];
-	ret->yaw_gyro = imu_data.gyro_data[AXIS_YAW];
-
-	ret->x_accel = imu_data.accel_data[ACCEL_AXIS_X];
-	ret->y_accel = imu_data.accel_data[ACCEL_AXIS_Y];
-	ret->z_accel = imu_data.accel_data[ACCEL_AXIS_Z];
+	memcpy(ret, &(st_vector.sensor_data), sizeof(observation));
 }
 
-void gnc_get_state_vector_data(gnc_state_data *ret)
+void gnc_get_state_vector_data(complementary_filter_struct *ret)
 {
-	ret->roll = st_vector.roll;
-	ret->pitch = st_vector.pitch;
-	ret->yaw = st_vector.yaw;
+	memcpy(ret, &st_vector, sizeof(complementary_filter_struct));
 }
 
 float gnc_get_vertical_dynamic_acceleration(void)
 {
-	return st_vector.vertical_dynamic_acceleration_post_lpf;
+	return st_vector.imu_data.accel_data[2] - 9.810f;
 }
 
 // void velocity_controller_update(float vel_cmd_x, float vel_cmd_y, float vel_x, float vel_y, float *roll_cmd, float *pitch_cmd)
@@ -107,7 +81,7 @@ void gnc_vehicle_stabilization_outerloop_update(float roll_cmd_in,
 												float *pitch_rate_cmd_out,
 												float *yaw_rate_cmd_out)
 {
-	generate_rate_commands(&st_vector, &imu_data, roll_cmd_in, pitch_cmd_in, yaw_cmd_in, roll_rate_cmd_out, pitch_rate_cmd_out, yaw_rate_cmd_out);
+	generate_rate_commands(&st_vector, &(st_vector.imu_data), roll_cmd_in, pitch_cmd_in, yaw_cmd_in, roll_rate_cmd_out, pitch_rate_cmd_out, yaw_rate_cmd_out);
 }
 
 void gnc_vehicle_stabilization_innerloop_update(float roll_rate_cmd_in,
@@ -116,7 +90,7 @@ void gnc_vehicle_stabilization_innerloop_update(float roll_rate_cmd_in,
 												float throttle_value_in,
 												double *motor_commands_out)
 {
-	rate_controller_update(motor_commands_out, &imu_data, roll_rate_cmd_in, pitch_rate_cmd_in, yaw_rate_cmd_in, throttle_value_in);
+	rate_controller_update(motor_commands_out, &(st_vector.imu_data), roll_rate_cmd_in, pitch_rate_cmd_in, yaw_rate_cmd_in, throttle_value_in);
 }
 
 void gnc_height_kalman_struct_init(height_kalman_data_struct *str, float filter_dt_sec, float r_lidar)
@@ -157,20 +131,23 @@ void gnc_height_kalman_update(height_kalman_data_struct *str, float lidar_height
 	p22_predicted = str->p22;
 
 	// Corariance prediction noise.. aka the Q matrix :)
-	p11_predicted += 0.5f;
-	p12_predicted += 0.5f;
-	p21_predicted += 0.5f;
-	p22_predicted += 0.5f;
+	p11_predicted += 0.1f;
+	p12_predicted += 0.1f;
+	p21_predicted += 0.1f;
+	p22_predicted += 0.1f;
 
 	/*Update:*/
-	float roll_cos = cos(vehicle_roll_deg * DEGREES_TO_RADIANS_CONVERSION_FACTOR);
-	float pitch_cos = cos(vehicle_pitch_deg * DEGREES_TO_RADIANS_CONVERSION_FACTOR);
-	float roll_pitch_cos_prod = roll_cos * pitch_cos;
-	if(roll_pitch_cos_prod != 0.0f)
-	{
-		str->h_lidar_global_coords = lidar_height_measurement*(roll_cos * pitch_cos);
-		str->a_accel_global_coords = (accelerometer_z_measurement/(roll_cos * pitch_cos))- 9.810f;	
-	}
+	// float roll_cos = cos(vehicle_roll_deg * DEGREES_TO_RADIANS_CONVERSION_FACTOR);
+	// float pitch_cos = cos(vehicle_pitch_deg * DEGREES_TO_RADIANS_CONVERSION_FACTOR);
+	// float roll_pitch_cos_prod = roll_cos * pitch_cos;
+	// if(roll_pitch_cos_prod != 0.0f)
+	// {
+	// 	str->h_lidar_global_coords = lidar_height_measurement*(roll_cos * pitch_cos);
+	// 	str->a_accel_global_coords = (accelerometer_z_measurement/(roll_cos * pitch_cos))- 9.810f;	
+	// }
+
+	str->h_lidar_global_coords = lidar_height_measurement;
+	str->a_accel_global_coords = accelerometer_z_measurement;
 
 	str->g11 = p11_predicted/(p11_predicted + str->r_lidar);
 	str->g21 = p21_predicted/(p11_predicted + str->r_lidar);

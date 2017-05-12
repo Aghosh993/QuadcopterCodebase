@@ -25,7 +25,7 @@ static volatile pid_data_struct yaw_rate_controller;
 #endif
 
 #ifdef ATTITUDE_CONTROL_USE_LPF
-
+	
 	static volatile pi_d_lpf_data_struct roll_controller;
 	static volatile pi_d_lpf_data_struct pitch_controller;
 
@@ -148,9 +148,9 @@ void controller_init_vars(void)
 	pid_inhibit_integral(&roll_controller);
 	pid_inhibit_integral(&pitch_controller);
 
-	pid_inhibit_integral(&roll_rate_controller);
-	pid_inhibit_integral(&pitch_rate_controller);
-	pid_inhibit_integral(&yaw_rate_controller);
+	// pid_inhibit_integral(&roll_rate_controller);
+	// pid_inhibit_integral(&pitch_rate_controller);
+	// pid_inhibit_integral(&yaw_rate_controller);
 }
 
 void check_output_saturation(double* motor_output_buffer)
@@ -208,16 +208,16 @@ static float bno055_get_relative_heading_rad(float raw_heading, float prior_head
 	return delta_theta;
 }
 
-void generate_rate_commands(filtered_quadrotor_state* ap_st, imu_scaled_data_struct* data, float joy_x, float joy_y, float joy_yaw, float* roll_rate_output, float* pitch_rate_output, float* yaw_rate_output)
+void generate_rate_commands(complementary_filter_struct* ap_st, imu_scaled_data_struct* data, float joy_x, float joy_y, float joy_yaw, float* roll_rate_output, float* pitch_rate_output, float* yaw_rate_output)
 {
 
 	float roll, pitch;
 
-	float deg_to_rad_conv_factor = (float)PI_VAL/(float)180.0f;
+	// float deg_to_rad_conv_factor = (float)PI_VAL/(float)180.0f;
 
 	// Convert to radians:
-	roll = ap_st->roll*deg_to_rad_conv_factor;
-	pitch = ap_st->pitch*deg_to_rad_conv_factor;
+	roll = ap_st->state_vector.roll;//*deg_to_rad_conv_factor;
+	pitch = ap_st->state_vector.pitch;//*deg_to_rad_conv_factor;
 
 	switch(control_mode)
 	{
@@ -235,6 +235,8 @@ void generate_rate_commands(filtered_quadrotor_state* ap_st, imu_scaled_data_str
 		*roll_rate_output =  calculate_pi_d_lpf_adjustment(&roll_controller, roll, joy_x*roll_cmd_multiplier);
 		*pitch_rate_output = calculate_pi_d_lpf_adjustment(&pitch_controller, pitch, joy_y*pitch_cmd_multiplier);
 	#endif
+		break;
+	case MODE_XY_HEIGHT_POSITION_FEEDBACK:
 		break;
 	}
 
@@ -256,12 +258,9 @@ void rate_controller_update(double * c_props, imu_scaled_data_struct* data, floa
 {
 	double motor_outputs[4];
 
-	float corrected_gyro_data[3];
-	get_corrected_scaled_gyro_data(data, corrected_gyro_data);
-
-	float roll_rate_raw = (float)corrected_gyro_data[AXIS_ROLL]*(float)PI_VAL/(float)180.0;
-	float pitch_rate_raw = (float)corrected_gyro_data[AXIS_PITCH]*(float)PI_VAL/(float)180.0;
-	float yaw_rate_raw = (float)corrected_gyro_data[AXIS_YAW]*(float)PI_VAL/(float)180.0;
+	float roll_rate_raw = data->gyro_data[0]*(float)PI_VAL/(float)180.0;
+	float pitch_rate_raw = data->gyro_data[1]*(float)PI_VAL/(float)180.0;
+	float yaw_rate_raw = data->gyro_data[2]*(float)PI_VAL/(float)180.0;
 
 	// Initially command all 4 motors to neutral for data safety:
 

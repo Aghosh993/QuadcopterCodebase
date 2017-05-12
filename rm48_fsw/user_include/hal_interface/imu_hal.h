@@ -1,7 +1,11 @@
 #ifndef IMU_HAL_H
 #define IMU_HAL_H	1
 
-#include <hal_common_includes.h>
+#include <stdint.h>
+#include <math.h>
+
+#include "hal_common_includes.h"
+#include "mission_timekeeper.h"
 
 /*
 	Direction conventions:
@@ -39,6 +43,22 @@
 #define GYRO_YAW_SIGN	1.0f
 
 #define TIMEOUT_COUNTER_MAX		200000
+
+#define GYRO_X_IDEAL_READING 	0.0f	// 0 deg/s
+#define GYRO_Y_IDEAL_READING 	0.0f	// 0 deg/s
+#define GYRO_Z_IDEAL_READING 	0.0f	// 0 deg/s
+
+#define ACCELEROMETER_X_IDEAL_READING 0.0f		// 0 g
+#define ACCELEROMETER_Y_IDEAL_READING 0.0f		// 0 g
+#define ACCELEROMETER_Z_IDEAL_READING 9.810f 	// 1 g downward
+
+// Bias calculation number of samples to take:
+
+#define BIAS_CALC_NUM_SAMPLES	500
+
+// Bias calculation milliseconds between samples:
+
+#define BIAS_CALC_SAMPLE_DT_MS	20
 
 /*
 	MPU-9250 device I2C address:
@@ -125,6 +145,10 @@ typedef struct {
 
 	MAG_SCALE mag_meas_scale;
 	float magnetometer_data[3];
+
+	float gyro_bias[3];
+
+	float accel_bias[3];
 
 	float temp_sensor_deg_c;
 } imu_scaled_data_struct;
