@@ -179,15 +179,15 @@ void update_complementary_filter(complementary_filter_struct *s)
 	update_roll(s);
 }
 
-float degrees_to_radians(float deg)
-{
-	return deg * (float)M_PI/180.0f;
-}
+// float degrees_to_radians(float deg)
+// {
+// 	return deg * (float)M_PI/180.0f;
+// }
 
-float radians_to_degrees(float rad)
-{
-	return rad * 180.0f/(float)M_PI;
-}
+// float radians_to_degrees(float rad)
+// {
+// 	return rad * 180.0f/(float)M_PI;
+// }
 
 #if defined USE_STDIO_DEBUG
 	void test_imu_acquisition(complementary_filter_struct *s)

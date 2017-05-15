@@ -429,8 +429,8 @@ void flight_app(int argc, char** argv)
 			{
 				reset_flag(flag_100hz);
 				get_last_attitude(&bno_attitude[0]);
-				roll_rate_cmd_local = 1.9f*((roll_cmd*0.6f)-sd.state_vector.roll); //degrees_to_radians(bno_attitude[0])
-				pitch_rate_cmd_local = 1.9f*((pitch_cmd*-0.6f)-sd.state_vector.pitch); //degrees_to_radians(bno_attitude[1]) 
+				roll_rate_cmd_local = 3.0f*((roll_cmd*0.6f)-sd.state_vector.roll); //degrees_to_radians(bno_attitude[0])
+				pitch_rate_cmd_local = 3.0f*((pitch_cmd*-0.6f)-sd.state_vector.pitch); //degrees_to_radians(bno_attitude[1]) 
 																						// Since pitch stick is opposite pitch angle convention for aircraft body frame
 				yaw_rate_cmd_local = 0.3f*(yaw_cmd*-4.5f);//-degrees_to_radians(sd.imu_data.gyro_data[2]));
 			}
