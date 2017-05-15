@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import argparse
 
-message_set = "sf11_bno055 v_z ahrs_rp yaw_height flow bno055_att"
+message_set = "sf11_bno055 v_z ahrs_rp yaw_height flow bno055_att esc_cmds"
 
 def plot_file(file):
 	fig = plt.figure()

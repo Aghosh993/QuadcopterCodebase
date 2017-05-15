@@ -3,18 +3,18 @@
  *                                                                            *
  *              See http://www.sympy.org/ for more information.               *
  *                                                                            *
- *                       This file is part of 'project'                       *
+ *                 This file is part of 'Kalman_4state_Core'                  *
  ******************************************************************************/
 
 
-#ifndef PROJECT__KALMAN_4STATE_AUTOGEN__H
-#define PROJECT__KALMAN_4STATE_AUTOGEN__H
+#ifndef KALMAN_4STATE_CORE__KALMAN_4STATE_AUTOGEN__H
+#define KALMAN_4STATE_CORE__KALMAN_4STATE_AUTOGEN__H
 
-void predict_state(double dt, double pitch, double pitch_rate, double roll, double roll_rate, double *out_4934366627997458542);
-void predict_cov(double dt, double p11, double p12, double p13, double p14, double p21, double p22, double p23, double p24, double p31, double p32, double p33, double p34, double p41, double p42, double p43, double p44, double q11, double q22, double q33, double q44, double *out_7046910104081708530);
-void update_gain(double g, double p11, double p12, double p13, double p14, double p21, double p22, double p23, double p24, double p31, double p32, double p33, double p34, double p41, double p42, double p43, double p44, double r11, double r22, double r33, double r44, double *out_2564730263248370446);
-void update_state(double ax, double ay, double g, double g11, double g12, double g13, double g14, double g21, double g22, double g23, double g24, double g31, double g32, double g33, double g34, double g41, double g42, double g43, double g44, double gyro_pitch, double gyro_roll, double pitch, double pitch_rate, double roll, double roll_rate, double *out_1048260822836027695);
-void update_cov(double g, double g11, double g12, double g13, double g14, double g21, double g22, double g23, double g24, double g31, double g32, double g33, double g34, double g41, double g42, double g43, double g44, double p11, double p12, double p13, double p14, double p21, double p22, double p23, double p24, double p31, double p32, double p33, double p34, double p41, double p42, double p43, double p44, double *out_1617170561140791062);
+void predict_state(float dt, float pitch, float pitch_rate, float roll, float roll_rate, float *out_6256484655591047007);
+void predict_cov(float dt, float p11, float p12, float p13, float p14, float p21, float p22, float p23, float p24, float p31, float p32, float p33, float p34, float p41, float p42, float p43, float p44, float q11, float q22, float q33, float q44, float *out_874294713084759149);
+void update_gain(float g, float p11, float p12, float p13, float p14, float p21, float p22, float p23, float p24, float p31, float p32, float p33, float p34, float p41, float p42, float p43, float p44, float r11, float r22, float r33, float r44, float *out_7497920569122251633);
+void update_state(float ax, float ay, float g, float g11, float g12, float g13, float g14, float g21, float g22, float g23, float g24, float g31, float g32, float g33, float g34, float g41, float g42, float g43, float g44, float gyro_pitch, float gyro_roll, float pitch, float pitch_rate, float roll, float roll_rate, float *out_309013171901928691);
+void update_cov(float g, float g11, float g12, float g13, float g14, float g21, float g22, float g23, float g24, float g31, float g32, float g33, float g34, float g41, float g42, float g43, float g44, float p11, float p12, float p13, float p14, float p21, float p22, float p23, float p24, float p31, float p32, float p33, float p34, float p41, float p42, float p43, float p44, float *out_4012366199454581357);
 
 #endif
 

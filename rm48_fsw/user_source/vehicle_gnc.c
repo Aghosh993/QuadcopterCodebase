@@ -13,7 +13,7 @@ void gnc_init(void)
 	// init_comp_filter(&st_vector);	// Initialize complementary filter data structs/vars
 	// do_bias_calculation(&imu_data); // Bias calibration for IMU (gyro+accel)
 	init_complementary_filter(&st_vector, SCALE_2G, SCALE_250_DPS, SCALE_1POINT3_GAUSS,
-	                          0.0025f, 0.085f, 1.0f, MODE_1STORDER_COMPFILTER);
+	                          0.0025f, 0.085f, 1.0f, MODE_2NDORDER_COMPFILTER);
 	
 	controller_init_vars();			// Set controller gains
 	set_controller_mode(MODE_ANGULAR_POSITION_CONTROL); // Set controller to stabilize (i.e. angular control) mode

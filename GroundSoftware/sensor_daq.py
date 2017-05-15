@@ -124,7 +124,7 @@ def main():
 				if verboseMode:
 					print("Roll: %0.2f"%(float(att_msg[0])/16.)+", Pitch: %0.2f"%(float(att_msg[1])/16.)+", Yaw: %0.2f"%(float(att_msg[2])/16.))
 	elif sensor == "esc_cmds":
-		print("Acquiring BNO055 attitude data now...")
+		print("Acquiring ESC command data now...")
 		arbID = 6
 		while True:
 			msg = bus.recv()
@@ -135,7 +135,7 @@ def main():
 					firstPacket = False
 				fp.write("%0.3f"%(time.time()-t0)+", %0.5f"%(float(esc_cmd_msg[0])/65535.)+", %0.5f"%(float(esc_cmd_msg[1])/65535.)+", %0.5f"%(float(esc_cmd_msg[2])/65535.)+", %0.5f\n"%(float(esc_cmd_msg[3])/65535.))
 				if verboseMode:
-					print("M1: %0.2f"%(float(esc_cmd_msg[0])/65535.)+", M2: %0.2f"%(float(esc_cmd_msg[1])/65535.)+", M3: %0.2f"%(float(esc_cmd_msg[2])/65535.)+", M4: %0.2f"%(float(esc_cmd_msg[3])/65535.))
+					print("M1: %0.5f"%(float(esc_cmd_msg[0])/65535.)+", M2: %0.5f"%(float(esc_cmd_msg[1])/65535.)+", M3: %0.5f"%(float(esc_cmd_msg[2])/65535.)+", M4: %0.5f"%(float(esc_cmd_msg[3])/65535.))
 				
 	else:
 		print("Invalid sensor ID selected")

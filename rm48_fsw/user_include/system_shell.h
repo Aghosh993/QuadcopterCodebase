@@ -1,5 +1,5 @@
 #ifndef SYSTEM_SHELL_H_
-#define SYSTEM_SHELL_H_		1
+#define SYSTEM_SHELL_H_   1
 
 /*
   BSD 3-Clause License
@@ -40,16 +40,16 @@
 
 #include "serial_comms_highlevel.h"
 
-#define CMD_BUFSIZE_INIT	30
-#define CMD_ARGSIZE_INIT	10
-#define CMD_TABLE_MAXLEN	20
-#define CMD_NAME_MAXLEN		15
+#define CMD_BUFSIZE_INIT  30
+#define CMD_ARGSIZE_INIT  10
+#define CMD_TABLE_MAXLEN  20
+#define CMD_NAME_MAXLEN   15
 
-#define GETLINE_ECHO_ENABLE	1
+#define GETLINE_ECHO_ENABLE 1
 
 typedef struct {
-	void (*app)(int, char**);
-	char *cmdname; 
+  void (*app)(int, char**);
+  char *cmdname; 
 } command;
 
 void setup_system_shell(void);

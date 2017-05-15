@@ -377,9 +377,9 @@ void flight_app(int argc, char** argv)
 			_disable_interrupts();
 
 				update_cmds = 0;
-				roll_adj = 0.3f*(roll_rate_cmd-degrees_to_radians(sd.imu_data.gyro_data[0]));
-				pitch_adj = 0.3f*(pitch_rate_cmd-degrees_to_radians(sd.imu_data.gyro_data[1]));
-				yaw_adj = 0.2f*(yaw_rate_cmd-degrees_to_radians(sd.imu_data.gyro_data[2]));
+				roll_adj = 0.2f*(roll_rate_cmd_local-degrees_to_radians(sd.imu_data.gyro_data[0]));
+				pitch_adj = 0.2f*(pitch_rate_cmd_local-degrees_to_radians(sd.imu_data.gyro_data[1]));
+				yaw_adj = 0.2f*(yaw_rate_cmd_local-degrees_to_radians(sd.imu_data.gyro_data[2]));
 
 				m1_cmd = throttle_value_common_local + roll_adj*0.5f + pitch_adj*0.5f + yaw_adj;
 				m2_cmd = throttle_value_common_local - roll_adj*0.5f + pitch_adj*0.5f - yaw_adj;
@@ -394,11 +394,12 @@ void flight_app(int argc, char** argv)
 				QuadRotor_motor2_setDuty(m2_cmd);
 				QuadRotor_motor3_setDuty(m3_cmd);
 				QuadRotor_motor4_setDuty(m4_cmd);
-				mcmds[0]=m1_cmd;
-				mcmds[1]=m2_cmd;
-				mcmds[2]=m3_cmd;
+				mcmds[0]=sd.imu_data.gyro_data[0];//m1_cmd; // maybe try also outputting the rd.gyro data stuff??
+				mcmds[1]=degrees_to_radians(sd.imu_data.gyro_data[1]);//m2_cmd;
+				mcmds[2]=degrees_to_radians(sd.imu_data.gyro_data[2]);//m3_cmd;
 				mcmds[3]=m4_cmd;
-				publish_motor_commands(&mcmds[0]);
+				// publish_motor_commands(&mcmds[0]);
+				publish_vert_velocity_estimate(mcmds[0]);
 			
 			_enable_interrupts();
 		}
@@ -428,15 +429,16 @@ void flight_app(int argc, char** argv)
 			{
 				reset_flag(flag_100hz);
 				get_last_attitude(&bno_attitude[0]);
-				roll_rate_cmd_local = 1.8f*((roll_cmd*0.3f)-degrees_to_radians(bno_attitude[0]));// sd.state_vector.roll);
-				pitch_rate_cmd_local = 1.8f*((pitch_cmd*-0.3f)-degrees_to_radians(bno_attitude[1]));//sd.state_vector.pitch); // Since pitch stick is opposite pitch angle convention for aircraft body frame
+				roll_rate_cmd_local = 1.9f*((roll_cmd*0.6f)-sd.state_vector.roll); //degrees_to_radians(bno_attitude[0])
+				pitch_rate_cmd_local = 1.9f*((pitch_cmd*-0.6f)-sd.state_vector.pitch); //degrees_to_radians(bno_attitude[1]) 
+																						// Since pitch stick is opposite pitch angle convention for aircraft body frame
 				yaw_rate_cmd_local = 0.3f*(yaw_cmd*-4.5f);//-degrees_to_radians(sd.imu_data.gyro_data[2]));
 			}
 			
 			
-			// For telemetry purposes:
 			gnc_get_raw_sensor_data(&rd);
 			gnc_get_state_vector_data(&sd);
+			// For telemetry purposes:
 			att_data[0] = sd.state_vector.roll;
 			att_data[1] = sd.state_vector.pitch;
 
@@ -524,7 +526,7 @@ void flight_app(int argc, char** argv)
 					#endif
 
 					#ifdef SEND_CAN_VERT_VEL
-						publish_vert_velocity_estimate(height_estimator.vertical_velocity_estimated);
+						// publish_vert_velocity_estimate(height_estimator.vertical_velocity_estimated);
 					#endif
 
 					#ifdef SEND_HEIGHT_ESTIMATOR_TELEMETRY

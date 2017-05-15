@@ -5,3 +5,4 @@ CAN Arb ID overview (11-bit IDs):
 [RM48] 0x3: Roll, pitch. Bytes [0,3] = roll, degrees (float) Bytes [4,7] = pitch, degrees (float)
 [RM48] 0x4: Yaw, Estimated Height. Bytes [0,3] = yaw, degrees (float), Bytes [4,7] = Estimated height, meters (float)
 [RM48] 0x5: Estimated vertical velocity. Bytes [0,3] = vertical velocity estimate, meters/s (float), Bytes [4,7] = Don't care (X) 
+[RM48] 0x6: ESC Motor commands, Bytes [0,7] = Motor commands, normalized to uint16 (uint16_t)
