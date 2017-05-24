@@ -38,7 +38,7 @@
 	in his/her jurisdiction, and releases the person named below from any liabilities, with the understanding that this
 	source code is provided "as-is".
 
-	(c) 2016, Abhimanyu Ghosh
+	(c) 2016-2017, Abhimanyu Ghosh
  */
 
 /* USER CODE END */
@@ -256,24 +256,58 @@ void calibrate_esc(int argc, char** argv)
 	}
 }
 
-static void check_saturation(float *num, float lower, float upper)
-{
-	if(*num > upper)
-	{
-		*num = upper;
-	}
-	if(*num < lower)
-	{
-		*num = lower;
-	}
-}
-
 void flight_app(int argc, char** argv)
 {
-	m1_cmd = 0.0f;
-	m2_cmd = 0.0f;
-	m3_cmd = 0.0f;
-	m4_cmd = 0.0f;
+	gnc_control_mode m;
+	int fc_mode = 0;
+
+	float attitude_kP = 3.2f;
+	float attitude_kD = 0.00f;
+
+	float rate_kP = 0.2f;
+
+	if(argc >= 3)
+	{
+		sscanf(argv[0], "%f", &attitude_kP);
+		sscanf(argv[1], "%f", &attitude_kD);
+		sscanf(argv[2], "%f", &rate_kP);
+
+		printf("Starting flight control application with Attitude P gain %f, D gain %f and Rate P gain %f\r\n", attitude_kP, attitude_kD, rate_kP);
+
+		if(argc >= 4)
+		{
+			if(strncmp(argv[3], "rate", 4) == 0)
+			{
+				m = MODE_RATE_CONTROL;
+				printf("Using angular rate control mode..\r\n");
+			}
+			else if(strncmp(argv[3], "attitude", 8) == 0)
+			{
+				m = MODE_ATTITUDE_CONTROL;
+				printf("Using angular attitude control mode..\r\n");
+			}
+			else if(strncmp(argv[3], "att_height_heading", 18) == 0)
+			{
+				m = MODE_ATTITUDE_HEIGHT_HEADING_CONTROL;
+				printf("Using angular attitude, height and heading control mode..\r\n");
+			}
+			else if(strncmp(argv[3], "att_height", 10) == 0)
+			{
+				m = MODE_ATTITUDE_HEIGHT_CONTROL;
+				printf("Using angular attitude and closed-loop height mode..\r\n");
+			}
+			else if(strncmp(argv[3], "vel", 3) == 0)
+			{
+				m = MODE_VELOCITY_CONTROL;
+				printf("Using lateral and vertical velocity control mode..\r\n");
+			}
+			else
+			{
+				printf("Invalid control mode argument!! Exiting now...\r\n");
+				return;
+			}
+		}
+	}
 
 	update_cmds = 0U;
 
@@ -292,11 +326,7 @@ void flight_app(int argc, char** argv)
 	QuadRotor_motor3_setDuty(0.0f);
 	QuadRotor_motor4_setDuty(0.0f);
 
-	// serialport_hal_init();
-	// serialport_init(&ftdi_dbg_port, PORT1);
 	rt_telemetry_init_channel(&telem0, &ftdi_dbg_port);
-
-	_enable_interrupts();
 
 	float roll_cmd, pitch_cmd, yaw_cmd;
 
@@ -320,9 +350,7 @@ void flight_app(int argc, char** argv)
 	board_led_on(LED1);
 	board_led_off(LED2);
 
-	gnc_init();
-	observation rd;
-	complementary_filter_struct sd;
+	gnc_init(attitude_kP, attitude_kD, rate_kP, m);
 
 	board_led_off(LED1);
 	timekeeper_delay(1000U);
@@ -347,8 +375,6 @@ void flight_app(int argc, char** argv)
 
 	uint8_t i = 0U;
 
-	height_kalman_data_struct height_estimator;
-	gnc_height_kalman_struct_init(&height_estimator, 0.005f, 0.05f);
 	float height_sensor_reading = 0.0f;
 	float height_closedloop_throttle_cmd = 0.0f;
 	float max_height_cmd = 2.0f;
@@ -361,8 +387,10 @@ void flight_app(int argc, char** argv)
 	float pitch_adj = 0.0f;
 	float yaw_adj = 0.0f;
 
-	float bno_attitude[3];
 	float mcmds[4];
+	float height_estimate = 0.0f;
+	float vert_vel_estimate = 0.0f;
+	float vert_accel_estimate = 0.0f;
 
 	while(1)
 	{
@@ -373,33 +401,45 @@ void flight_app(int argc, char** argv)
 				To actually query the IMU for raw data and populate internal GNC data structs.
 				This function call is blocking and takes about 600 us to run.
 			 */
-			gnc_get_vehicle_state();
+			gnc_update_vehicle_state();
 			_disable_interrupts();
 
 				update_cmds = 0;
-				roll_adj = 0.2f*(roll_rate_cmd_local-degrees_to_radians(sd.imu_data.gyro_data[0]));
-				pitch_adj = 0.2f*(pitch_rate_cmd_local-degrees_to_radians(sd.imu_data.gyro_data[1]));
-				yaw_adj = 0.2f*(yaw_rate_cmd_local-degrees_to_radians(sd.imu_data.gyro_data[2]));
 
-				m1_cmd = throttle_value_common_local + roll_adj*0.5f + pitch_adj*0.5f + yaw_adj;
-				m2_cmd = throttle_value_common_local - roll_adj*0.5f + pitch_adj*0.5f - yaw_adj;
-				m3_cmd = throttle_value_common_local - roll_adj*0.5f - pitch_adj*0.5f + yaw_adj;
-				m4_cmd = throttle_value_common_local + roll_adj*0.5f - pitch_adj*0.5f - yaw_adj;
+				// roll_adj = rate_kP*(roll_rate_cmd_local-degrees_to_radians(sd.imu_data->gyro_data[0]));
+				// pitch_adj = rate_kP*(pitch_rate_cmd_local-degrees_to_radians(sd.imu_data->gyro_data[1]));
+				// yaw_adj = rate_kP*(yaw_rate_cmd_local-degrees_to_radians(sd.imu_data->gyro_data[2]));
 
-				// check_saturation(&m1_cmd, 0.01f, 0.98f);
-				// check_saturation(&m2_cmd, 0.01f, 0.98f);
-				// check_saturation(&m3_cmd, 0.01f, 0.98f);
-				// check_saturation(&m4_cmd, 0.01f, 0.98f);
-				QuadRotor_motor1_setDuty(m1_cmd);
-				QuadRotor_motor2_setDuty(m2_cmd);
-				QuadRotor_motor3_setDuty(m3_cmd);
-				QuadRotor_motor4_setDuty(m4_cmd);
-				mcmds[0]=sd.imu_data.gyro_data[0];//m1_cmd; // maybe try also outputting the rd.gyro data stuff??
-				mcmds[1]=degrees_to_radians(sd.imu_data.gyro_data[1]);//m2_cmd;
-				mcmds[2]=degrees_to_radians(sd.imu_data.gyro_data[2]);//m3_cmd;
-				mcmds[3]=m4_cmd;
-				// publish_motor_commands(&mcmds[0]);
-				publish_vert_velocity_estimate(mcmds[0]);
+				// m1_cmd = throttle_value_common_local + roll_adj*0.5f + pitch_adj*0.5f + yaw_adj;
+				// m2_cmd = throttle_value_common_local - roll_adj*0.5f + pitch_adj*0.5f - yaw_adj;
+				// m3_cmd = throttle_value_common_local - roll_adj*0.5f - pitch_adj*0.5f + yaw_adj;
+				// m4_cmd = throttle_value_common_local + roll_adj*0.5f - pitch_adj*0.5f - yaw_adj;
+
+				// m1_cmd = height_closedloop_throttle_cmd + roll_adj*0.5f + pitch_adj*0.5f + yaw_adj;
+				// m2_cmd = height_closedloop_throttle_cmd - roll_adj*0.5f + pitch_adj*0.5f - yaw_adj;
+				// m3_cmd = height_closedloop_throttle_cmd - roll_adj*0.5f - pitch_adj*0.5f + yaw_adj;
+				// m4_cmd = height_closedloop_throttle_cmd + roll_adj*0.5f - pitch_adj*0.5f - yaw_adj;
+
+				// check_saturation(&m1_cmd, 0.01f, 0.97f);
+				// check_saturation(&m2_cmd, 0.01f, 0.97f);
+				// check_saturation(&m3_cmd, 0.01f, 0.97f);
+				// check_saturation(&m4_cmd, 0.01f, 0.97f);
+				
+				// mcmds[0]=m1_cmd;
+				// mcmds[1]=m2_cmd;
+				// mcmds[2]=m3_cmd;
+				// mcmds[3]=m4_cmd;
+
+				// gnc_attitude_rate_controller_update(throttle_value_common_local); // Open-loop height
+				gnc_attitude_rate_controller_update(height_closedloop_throttle_cmd); // Closed-loop height
+				gnc_get_actuator_commands(&mcmds[0]);
+
+				QuadRotor_motor1_setDuty(mcmds[0]);
+				QuadRotor_motor2_setDuty(mcmds[1]);
+				QuadRotor_motor3_setDuty(mcmds[2]);
+				QuadRotor_motor4_setDuty(mcmds[3]);
+				
+				publish_motor_commands(&mcmds[0]);
 			
 			_enable_interrupts();
 		}
@@ -421,34 +461,17 @@ void flight_app(int argc, char** argv)
 			{
 				reset_flag(flag_10hz);				
 				rc_input_validity_watchdog_callback(); // Check if sufficient number of RC rising edges have occurred in last 100 ms
-				// printf("%f %f\r\n", roll_cmd, pitch_cmd);
-				// printf("Roll: %f, Pitch: %f\r\n", sd.state_vector.roll, sd.state_vector.pitch);
 			}
 
 			if(get_flag_state(flag_100hz) == STATE_PENDING)
 			{
 				reset_flag(flag_100hz);
-				get_last_attitude(&bno_attitude[0]);
-				roll_rate_cmd_local = 3.0f*((roll_cmd*0.6f)-sd.state_vector.roll); //degrees_to_radians(bno_attitude[0])
-				pitch_rate_cmd_local = 3.0f*((pitch_cmd*-0.6f)-sd.state_vector.pitch); //degrees_to_radians(bno_attitude[1]) 
-																						// Since pitch stick is opposite pitch angle convention for aircraft body frame
-				yaw_rate_cmd_local = 0.3f*(yaw_cmd*-4.5f);//-degrees_to_radians(sd.imu_data.gyro_data[2]));
+				// roll_rate_cmd_local = attitude_kP*((roll_cmd*0.6f)-sd.state_vector.roll) - attitude_kD*sd.state_vector.roll_rate;
+				// pitch_rate_cmd_local = attitude_kP*((pitch_cmd*-0.6f)-sd.state_vector.pitch) - attitude_kD*sd.state_vector.pitch_rate; 	// Since pitch stick is opposite pitch 
+				// 																														// angle convention for aircraft body frame
+				// yaw_rate_cmd_local = 0.3f*(yaw_cmd*-4.5f);
+				gnc_attitude_controller_update(roll_cmd, pitch_cmd, yaw_cmd);
 			}
-			
-			
-			gnc_get_raw_sensor_data(&rd);
-			gnc_get_state_vector_data(&sd);
-			// For telemetry purposes:
-			att_data[0] = sd.state_vector.roll;
-			att_data[1] = sd.state_vector.pitch;
-
-			sensor_data[0] = 0.0f;//rd.x_accel;
-			sensor_data[1] = 0.0f;//rd.y_accel;
-			sensor_data[2] = 0.0f;//rd.z_accel;
-
-			sensor_data[3] = 0.0f;//rd.roll_gyro;
-			sensor_data[4] = 0.0f;//rd.pitch_gyro;
-			sensor_data[5] = 0.0f;//rd.yaw_gyro;
 			
 			if(get_flag_state(flag_200hz) == STATE_PENDING)
 			{
@@ -458,9 +481,6 @@ void flight_app(int argc, char** argv)
 				reset_flag(flag_200hz);
 
 				// Send telemetry items as configured:
-				#ifdef SEND_CAN_ROLL_PITCH
-					publish_roll_pitch(bno_attitude[0],bno_attitude[1]);//radians_to_degrees(sd.state_vector.roll), radians_to_degrees(sd.state_vector.pitch));
-				#endif
 
 				#ifdef SEND_MPU_IMU_TELEMETRY
 					send_telem_msg_n_floats_blocking(&telem0, (uint8_t *)"imu", 3, sensor_data, 6);
@@ -469,31 +489,17 @@ void flight_app(int argc, char** argv)
 					send_telem_msg_n_floats_blocking(&telem0, (uint8_t *)"state", 5, att_data, 2);
 				#endif
 
-				// Run height estimation Kalman filter:
-				gnc_height_kalman_update(&height_estimator, height_sensor_reading, gnc_get_vertical_dynamic_acceleration(), sd.state_vector.roll, sd.state_vector.pitch);
-
-				// Obtain new height throttle command:
-				height_closedloop_throttle_cmd = gnc_get_height_controller_throttle_command(throttle_value_common_local*max_height_cmd, 
-																						height_estimator.height_estimated,
-																						height_estimator.vertical_velocity_estimated);
+				get_height_state_vector(&height_estimate, &vert_vel_estimate, &vert_accel_estimate);
+				height_closedloop_throttle_cmd = gnc_get_height_controller_throttle_command(throttle_value_common_local*max_height_cmd);//, height_estimate, vert_vel_estimate);
 
 				// Run GNC angular outer loop control to generate rate commands for inner loop:
 				// gnc_vehicle_stabilization_outerloop_update(roll_cmd, pitch_cmd, yaw_cmd,
 				// 											&roll_rate_cmd_local, &pitch_rate_cmd_local, &yaw_rate_cmd_local);
 
-				// Simple outerloop update :)
-				// error = command-measurement
-				// roll_rate_cmd_local = 1.8f*((roll_cmd*0.3f)- sd.state_vector.roll);
-				// pitch_rate_cmd_local = 1.8f*((pitch_cmd*-0.3f)-sd.state_vector.pitch); // Since pitch stick is opposite pitch angle convention for aircraft body frame
-				// yaw_rate_cmd_local = 0.3f*(yaw_cmd*-4.5f);//-degrees_to_radians(sd.imu_data.gyro_data[2]));
-
-
 				_disable_interrupts();
 					roll_rate_cmd = roll_rate_cmd_local;
 					pitch_rate_cmd = pitch_rate_cmd_local;
 					yaw_rate_cmd = yaw_rate_cmd_local;
-					throttle_value_common = throttle_value_common_local; // For open-loop height control!!
-					// throttle_value_common = height_closedloop_throttle_cmd; // For closed-loop height control!!
 				_enable_interrupts();
 
 				#ifdef SEND_MOTOR_CMDS_TELEMETRY
@@ -513,20 +519,22 @@ void flight_app(int argc, char** argv)
 						send_telem_msg_n_floats_blocking(&telem0, (uint8_t *)"sf11c", 5, &height_sensor_reading, 1);
 					#endif
 					
-					height_sensor_reading = get_last_can_height_msg();
 					yaw_sensor_reading = get_last_can_heading_msg();
 				}
 				
 				if(get_flag_state(flag_50hz) == STATE_PENDING)
 				{
+				#ifdef SEND_CAN_ROLL_PITCH
+					// publish_roll_pitch(radians_to_degrees(sd.state_vector.roll), radians_to_degrees(sd.state_vector.pitch));
+				#endif
 					reset_flag(flag_50hz);
 
 					#ifdef SEND_CAN_YAW_HEIGHT
-						publish_yaw_height_estimate(yaw_sensor_reading, height_estimator.height_estimated);
+						publish_yaw_height_estimate(yaw_sensor_reading, height_estimate);
 					#endif
 
 					#ifdef SEND_CAN_VERT_VEL
-						// publish_vert_velocity_estimate(height_estimator.vertical_velocity_estimated);
+						publish_vert_velocity_estimate(vert_vel_estimate);
 					#endif
 
 					#ifdef SEND_HEIGHT_ESTIMATOR_TELEMETRY
@@ -598,93 +606,6 @@ void flight_app(int argc, char** argv)
 /* USER CODE END */
 }
 
-void test_comp_filter(int argc, char** argv)
-{
-	printf("\r\nThis app will run the second-order complementary filter until the RC controller is switched off.\r\n");
-	printf("Press p to proceed or e to exit\r\n");
-	char c = ' ';
-	while(c != 'p' && c != 'e')
-	{
-		scanf("%c", &c);
-		if(c == 'e')
-		{
-			return;
-		}
-		if(c == 'p')
-		{
-			printf("Proceeding...\r\n");
-			break;
-		}
-	}
-  	_disable_interrupts();
-
-	// Initialize PWM channels for 4 motors and set all motors to stop by default:
-	QuadRotor_PWM_init();
-	QuadRotor_motor1_start();
-	QuadRotor_motor2_start();
-	QuadRotor_motor3_start();
-	QuadRotor_motor4_start();
-
-	/*
-		All motors stopped by default:
-	*/
-	QuadRotor_motor1_setDuty(0.0f);
-	QuadRotor_motor2_setDuty(0.0f); 
-	QuadRotor_motor3_setDuty(0.0f);
-	QuadRotor_motor4_setDuty(0.0f);
-
-	_enable_interrupts();
-
-	timekeeper_delay(3000U);
-
-	complementary_filter_struct s;
-	init_complementary_filter(&s, SCALE_2G, SCALE_250_DPS, SCALE_1POINT3_GAUSS,
-	                          0.010f, 0.8f, 1.0f, MODE_2NDORDER_COMPFILTER);
-
-	init_rc_inputs(&rc_data, 0);
-
-	timekeeper_delay(1000U);
-
-	printf("Setup complete, starting main loop...\r\n");
-
-	while(1)
-	{
-		// Get RC Joystick data from last reception:
-
-		get_rc_input_values(&rc_data);
-
-		if(rc_data.mode_switch_channel_validity == CHANNEL_VALID)
-		{
-			QuadRotor_motor1_setDuty(0.50f*(rc_data.vertical_channel_value + 1.0f));
-			QuadRotor_motor2_setDuty(0.50f*(rc_data.vertical_channel_value + 1.0f));
-			QuadRotor_motor3_setDuty(0.50f*(rc_data.vertical_channel_value + 1.0f));
-			QuadRotor_motor4_setDuty(0.50f*(rc_data.vertical_channel_value + 1.0f));
-
-			if(get_flag_state(flag_100hz) == STATE_PENDING)
-			{
-				reset_flag(flag_100hz);
-				update_complementary_filter(&s);
-				#ifdef SEND_CAN_ROLL_PITCH
-					publish_roll_pitch(radians_to_degrees(s.state_vector.roll), radians_to_degrees(s.state_vector.pitch));
-				#endif
-			}
-
-			if(get_flag_state(flag_10hz) == STATE_PENDING)
-			{
-				reset_flag(flag_10hz);
-				rc_input_validity_watchdog_callback();
-				printf("Roll: %f Pitch: %f\r\n", radians_to_degrees(s.state_vector.roll), radians_to_degrees(s.state_vector.pitch));
-				// printf("Roll: %f Pitch: %f\r\n", radians_to_degrees(s.state_vector.roll_rate), radians_to_degrees(s.state_vector.pitch_rate));
-			}
-		}
-		else
-		{
-			printf("\r\nUSER button pressed, exiting...\r\n");
-			return;
-		}
-	}
-}
-
 int main(void)
 {
 	/*Globally disable R4 IRQs AND FIQs:*/
@@ -738,19 +659,21 @@ int main(void)
 		printf("Install error in command esc_cal\r\n");
 	}
 
-	if(install_cmd("compfilter", test_comp_filter) < 0)
-	{
-		printf("Install error in command compfilter\r\n");
-	}
-
 	printf("...Done, enabling interrupts.\r\n");
 
 	_enable_interrupts();
+
+	/*
+		Autostarted apps go in sequence below. Once these exit the system will simply go back to running the shell 
+		and processing further user input:
+	 */
 
 	flight_app(0, NULL);
 
 	while(1)
 	{
-		shell_run();
+		shell_run(); // Keep prompting for more commands and processing appropriately...
 	}
+
+	// Never get here, or Bad Things (tm) happen :)
 }

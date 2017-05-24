@@ -554,6 +554,8 @@ int main(void)
 
     int16_t bno_raw_data[3];
 
+    int sf11_msg_avail = 0;
+
     while(1)
     {
         #if !defined USE_CAN_ENCAP
@@ -565,20 +567,26 @@ int main(void)
             if(get_flag_state(sf10_25hz_trigger_flag) == STATE_PENDING)
             {
                 reset_flag(sf10_25hz_trigger_flag);
-                send_sensor_msg(height_heading_telem, HEIGHT_HEADING_MSG);
+                // send_sensor_msg(height_heading_telem, HEIGHT_HEADING_MSG);
                 request_sf10_sensor_update(&sf10_handler);
                 BNO055_trigger_get_data();
             }
-
-            if(get_flag_state(bno_100hz_flag) == STATE_PENDING)
+            if(sf11_msg_avail)
             {
-                reset_flag(bno_100hz_flag);
-                BNO055_get_raw_estimate(&bno_raw_data[0]);
-                send_sensor_msg_int16(bno_raw_data, BNO_ATT_MSG);
+                sf11_msg_avail = 0;
+                send_sensor_msg(height_heading_telem, HEIGHT_HEADING_MSG);
             }
+
+            // if(get_flag_state(bno_100hz_flag) == STATE_PENDING)
+            // {
+            //     reset_flag(bno_100hz_flag);
+            //     BNO055_get_raw_estimate(&bno_raw_data[0]);
+            //     send_sensor_msg_int16(bno_raw_data, BNO_ATT_MSG);
+            // }
 
             if(sf10_received_new_data(&sf10_handler))
             {
+                sf11_msg_avail = 1;
                 height_heading_telem[0] = get_last_sf10_sensor_height(&sf10_handler);
             }
 

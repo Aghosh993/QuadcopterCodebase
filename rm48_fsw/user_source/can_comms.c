@@ -4,6 +4,8 @@ static volatile float last_lidar_height;
 static volatile float last_heading_reading;
 static float last_att_roll, last_att_pitch, last_att_yaw;
 
+static volatile int _new_height_msg = 0;
+
 void get_sensor_msg(uint8_t* msg_data, sensor_msg m)
 {
     int i = 0;
@@ -29,6 +31,7 @@ void get_sensor_msg(uint8_t* msg_data, sensor_msg m)
 
 		    last_lidar_height = uint8_to_f32_2.output[0];
 		    last_heading_reading = uint8_to_f32_2.output[1];
+		    _new_height_msg = 1;
 			break;
 		case FLOW_MSG:
 			break;
@@ -56,6 +59,16 @@ float get_last_can_height_msg(void)
 float get_last_can_heading_msg(void)
 {
 	return last_heading_reading;
+}
+
+int new_height_avail(void)
+{
+	int tmp = _new_height_msg;
+	if(tmp)
+	{
+		_new_height_msg = 0;
+	}
+	return tmp;
 }
 
 void get_last_attitude(float *att)

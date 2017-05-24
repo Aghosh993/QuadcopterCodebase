@@ -251,7 +251,7 @@ void generate_rate_commands(complementary_filter_struct* ap_st, imu_scaled_data_
 	 * Closed-loop yaw control using full state vector:
 	 */
 	// *yaw_rate_output = 0.25f * bno055_get_relative_heading_rad((ap_st->yaw * deg_to_rad_conv_factor), joy_yaw) + -0.20f * deg_to_rad_conv_factor * data->gyro_data[AXIS_YAW];
-	 // *yaw_rate_output = 0.20f * bno055_get_relative_heading_rad(joy_yaw, (ap_st->yaw * deg_to_rad_conv_factor));
+	// *yaw_rate_output = 0.20f * bno055_get_relative_heading_rad(joy_yaw, (ap_st->yaw * deg_to_rad_conv_factor));
 }
 
 void rate_controller_update(double * c_props, imu_scaled_data_struct* data, float roll_rate_cmd, float pitch_rate_cmd, float yaw_rate_cmd, float throttle_openloop_commanded)

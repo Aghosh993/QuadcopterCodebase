@@ -91,7 +91,7 @@
 
 #define LATERAL_VELOCITY_CONTROL_DT		0.020f
  
-#define HEIGHT_CONTROL_DT				0.006f
+#define HEIGHT_CONTROL_DT				0.005f
 
 #define MAX_HEIGHT						0.500f	// In Meters
 

@@ -19,5 +19,6 @@ void publish_roll_pitch(float roll, float pitch);
 void publish_yaw_height_estimate(float yaw, float height_estimate);
 void publish_vert_velocity_estimate(float v);
 void publish_motor_commands(float *cmds);
+int new_height_avail(void);
 
 #endif

@@ -11,8 +11,8 @@
 
 #include <hal_common_includes.h>
 
-#define MIN_DUTY 0.35f
-#define MAX_DUTY 0.85f
+#define MIN_DUTY 0.4f//0.35f
+#define MAX_DUTY 0.8f//0.85f
 
 // For the old hardware  platform (With rev 1 interface board):
 // #define MOTOR4_HET_CHANNEL	hetRAM1, pwm0

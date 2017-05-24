@@ -36,7 +36,7 @@ void blocking_sci_SendData(uint8_t *dataptr, uint8_t len)
 
 void esc_cal(int motor)
 {
-	float max_pulse_ms = 0.85f;
+	float max_pulse_ms = 0.8f; //0.85f
 	uint32_t i = 0U;
 	uint32_t steps = 500U;
 

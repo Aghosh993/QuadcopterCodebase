@@ -92,9 +92,9 @@ def main():
 				if firstPacket:
 					t0 = time.time()
 					firstPacket = False
-				fp.write("%0.3f"%(time.time()-t0)+", %0.2f"%yaw_height_msg[0]+", %0.2f\n"%yaw_height_msg[1])
+				fp.write("%0.3f"%(time.time()-t0)+", %0.4f"%yaw_height_msg[0]+", %0.4f\n"%yaw_height_msg[1])
 				if verboseMode:
-					print("Yaw: %0.2f"%yaw_height_msg[0]+", Height_Est: %0.2f"%yaw_height_msg[1])
+					print("Yaw: %0.4f"%yaw_height_msg[0]+", Height_Est: %0.4f"%yaw_height_msg[1])
 				
 	elif sensor == "v_z":
 		print("Acquiring vertical velocity estimator data now...")
@@ -106,9 +106,9 @@ def main():
 				if firstPacket:
 					t0 = time.time()
 					firstPacket = False
-				fp.write("%0.3f"%(time.time()-t0)+", %0.2f\n"%v_z_msg[0])
+				fp.write("%0.3f"%(time.time()-t0)+", %0.4f\n"%v_z_msg[0])
 				if verboseMode:
-					print("Vertical Vel: %0.2f"%v_z_msg[0])
+					print("Vertical Vel: %0.4f"%v_z_msg[0])
 
 	elif sensor == "bno055_att":
 		print("Acquiring BNO055 attitude data now...")

@@ -33,7 +33,7 @@ static float scale_vector(float *data, float newmag, int n)
 
 	mag = sqrtf(mag);
 
-	float scale_factor = newmag/mag;
+	float scale_factor = fabs(newmag/mag);
 	
 	if(mag != 0.0f)
 	{
@@ -46,7 +46,13 @@ static float scale_vector(float *data, float newmag, int n)
 
 static float roll_accel(complementary_filter_struct *s)
 {
-	float roll_sine = s->imu_data.accel_data[1]/(9.810f * cosf(s->state_vector.pitch));
+	float accel_data[3];
+	accel_data[0] = s->imu_data->accel_data[0];
+	accel_data[1] = s->imu_data->accel_data[1];
+	accel_data[2] = s->imu_data->accel_data[2];
+	scale_vector(accel_data, 9.810f, 3);	// Re-normalize accelerometer data to have a magnitude of 1G
+
+	float roll_sine = accel_data[1]/(9.810f * cosf(s->state_vector.pitch));
 	if(roll_sine > 1.0f)
 	{
 		roll_sine = 1.0f;
@@ -60,7 +66,13 @@ static float roll_accel(complementary_filter_struct *s)
 
 static float pitch_accel(complementary_filter_struct *s)
 {
-	return asinf(-1.0f*s->imu_data.accel_data[0]/(float)9.810f);
+	float accel_data[3];
+	accel_data[0] = s->imu_data->accel_data[0];
+	accel_data[1] = s->imu_data->accel_data[1];
+	accel_data[2] = s->imu_data->accel_data[2];
+	scale_vector(accel_data, 9.810f, 3);	// Re-normalize accelerometer data to have a magnitude of 1G
+
+	return asinf(-1.0f*accel_data[0]/(float)9.810f);
 }
 
 static void update_roll(complementary_filter_struct *s)
@@ -69,7 +81,7 @@ static void update_roll(complementary_filter_struct *s)
 	switch(s->m)
 	{
 		case MODE_1STORDER_COMPFILTER:
-			s->state_vector.roll_rate = degrees_to_radians(s->imu_data.gyro_data[0]);
+			s->state_vector.roll_rate = degrees_to_radians(s->imu_data->gyro_data[0]);
 			if(fabs(s->state_vector.pitch) < 80.0f)
 			{
 				s->state_vector.roll = FIRSTORDER_GYRO_WEIGHT*(s->state_vector.roll + s->state_vector.roll_rate*s->filter_dt_seconds) + FIRSTORDER_ACCEL_WEIGHT*roll_accel(s);				
@@ -94,7 +106,7 @@ static void update_roll(complementary_filter_struct *s)
 
 			adj = error * s->k_P +  s->roll_integral * s->k_I;
 
-			s->state_vector.roll_rate = degrees_to_radians(s->imu_data.gyro_data[0]) + adj;
+			s->state_vector.roll_rate = degrees_to_radians(s->imu_data->gyro_data[0]) + adj;
 			s->state_vector.roll += s->state_vector.roll_rate * s->filter_dt_seconds;
 			break;
 	}
@@ -107,7 +119,7 @@ static void update_pitch(complementary_filter_struct *s)
 	switch(s->m)
 	{
 		case MODE_1STORDER_COMPFILTER:
-			s->state_vector.pitch_rate = degrees_to_radians(s->imu_data.gyro_data[1]);
+			s->state_vector.pitch_rate = degrees_to_radians(s->imu_data->gyro_data[1]);
 			s->state_vector.pitch = FIRSTORDER_GYRO_WEIGHT*(s->state_vector.pitch + s->state_vector.pitch_rate*s->filter_dt_seconds) + FIRSTORDER_ACCEL_WEIGHT*pitch_accel(s);
 			break;
 
@@ -117,13 +129,13 @@ static void update_pitch(complementary_filter_struct *s)
 
 			adj = error * s->k_P +  s->pitch_integral * s->k_I;
 
-			s->state_vector.pitch_rate = degrees_to_radians(s->imu_data.gyro_data[1]) + adj;
+			s->state_vector.pitch_rate = degrees_to_radians(s->imu_data->gyro_data[1]) + adj;
 			s->state_vector.pitch += s->state_vector.pitch_rate * s->filter_dt_seconds;
 			break;
 	}
 }
 
-int init_complementary_filter(complementary_filter_struct *s, ACC_SCALE a, GYRO_SCALE g, MAG_SCALE m, 
+int init_complementary_filter(complementary_filter_struct *s, imu_scaled_data_struct *imu_str,
 								float dt_sec, float omega_natural, float damping_ratio, filter_mode fm)
 {
 	s->state_vector.roll = 0.0f;
@@ -168,40 +180,34 @@ int init_complementary_filter(complementary_filter_struct *s, ACC_SCALE a, GYRO_
 
 	s->m = fm;
 
-	return initialize_imu(a, g, m, &(s->imu_data));
+	s->imu_data = imu_str;
 }
 
 void update_complementary_filter(complementary_filter_struct *s)
 {
-	get_scaled_imu_data(&(s->imu_data));
-	scale_vector(&(s->imu_data.accel_data[0]), 9.810f, 3); // Re-normalize accelerometer data to have a magnitude of 1G
 	update_pitch(s);
 	update_roll(s);
 }
 
-// float degrees_to_radians(float deg)
-// {
-// 	return deg * (float)M_PI/180.0f;
-// }
-
-// float radians_to_degrees(float rad)
-// {
-// 	return rad * 180.0f/(float)M_PI;
-// }
-
 #if defined USE_STDIO_DEBUG
 	void test_imu_acquisition(complementary_filter_struct *s)
 	{
-	    printf("Gyro: Roll %f Pitch %f Yaw %f\r\n", s->imu_data.gyro_data[0],
-					                                  s->imu_data.gyro_data[1],
-					                                  s->imu_data.gyro_data[2]);
+		float accel_data[3];
+		accel_data[0] = s->imu_data->accel_data[0];
+		accel_data[1] = s->imu_data->accel_data[1];
+		accel_data[2] = s->imu_data->accel_data[2];
+		scale_vector(accel_data, 9.810f, 3);	// Re-normalize accelerometer data to have a magnitude of 1G
 
-	    printf("Accel: X %f Y %f Z %f\r\n", s->imu_data.accel_data[0],
-	                                  		s->imu_data.accel_data[1],
-	                                  		s->imu_data.accel_data[2]);
+	    printf("Gyro: Roll %f Pitch %f Yaw %f\r\n", s->imu_data->gyro_data[0],
+					                                  s->imu_data->gyro_data[1],
+					                                  s->imu_data->gyro_data[2]);
 
-	    printf("Magnetometer: X %f Y %f Z %f\r\n", s->imu_data.magnetometer_data[0],
-	                                           		s->imu_data.magnetometer_data[1],
-	                                           		s->imu_data.magnetometer_data[2]);
+	    printf("Accel: X %f Y %f Z %f\r\n", accel_data[0],
+	                                  		accel_data[1],
+	                                  		accel_data[2]);
+
+	    printf("Magnetometer: X %f Y %f Z %f\r\n", s->imu_data->magnetometer_data[0],
+	                                           		s->imu_data->magnetometer_data[1],
+	                                           		s->imu_data->magnetometer_data[2]);
 	}
 #endif

@@ -4,116 +4,48 @@
 #include "imu.h"
 #include "iir_filters.h"
 #include "complementary_filter.h"
+#include "kalman_4state.h"
+#include "kalman_3state_height.h"
 #include "vehicle_pid_controller.h"
 
 #include <stdint.h>
 #include <math.h>
 #include <stdlib.h>
 
-#define SF10_UGV_THRESHOLD	0.18f // in meters, was 0.1f in last flight test
-#define UGV_HEIGHT			0.50f // in meters
-
 #define RAPID_DESCENT_INITIAL_HEIGHT		0.80f 		// In Meters
 #define RAPID_DESCENT_VELOCITY				0.65f 		// In Meters*s^-1
 #define RAPID_DESCENT_MOTOR_CUTOFF_HEIGHT	0.08f 		// In Meters
 
-// #define VELOCITY_CONTROL 	1
+#define ATTITUDE_CMD_MULTIPLIER				0.60f
+
+#define ACTUATOR_LOW_LIM					0.01f
+#define ACTUATOR_HIGH_LIM					0.97f
 
 typedef enum {
-	STATE_VEHICLE_ABOVE_GROUND,
-	STATE_TRANSITIONING_TO_UGV,
-	STATE_VEHICLE_ABOVE_UGV,
-	STATE_TRANSITIONING_TO_GROUND
-} vehicle_relative_height_tracker;
+	MODE_RATE_CONTROL, 						// Attitude rate control in all 3 axes, throttle/height is open-loop
+	MODE_ATTITUDE_CONTROL, 					// Attitude control in all 3 axes
+	MODE_ATTITUDE_HEIGHT_CONTROL,			// Attitude control in all 3 axes + height control
+	MODE_ATTITUDE_HEIGHT_HEADING_CONTROL,	// Attitude control in all 3 axes + height + heading control
+	MODE_VELOCITY_CONTROL					// Lateral and vertical velocity control and heading control
+} gnc_control_mode;
 
-typedef struct {
-	/*Filter Constants:*/
-
-	/*Time between filter updates in seconds:*/
-	float filter_dt;
-	/*Noise characteristic of LIDAR Altimeter:*/
-	float r_lidar;
-
-	/*========================================*/
-
-	/*Filter Variables*/
-
-	/*Filter state estimate (aka The Money :))*/
-	float height_estimated;
-	float vertical_velocity_estimated;
-
-	/*Latest sensor data fed into the filter as of the last update cycle:*/
-	float h_lidar_global_coords;
-	float a_accel_global_coords;
-
-	/*P matrix elements:*/
-	float p11;
-	float p12;
-	float p21;
-	float p22;
-
-	/*G (Kalman Gain) matrix elements:*/
-	float g11;
-	float g21;
-} height_kalman_data_struct;
-
-// typedef struct {
-// 	float roll_gyro;
-// 	float pitch_gyro;
-// 	float yaw_gyro;
-
-// 	float x_accel;
-// 	float y_accel;
-// 	float z_accel;
-
-// 	float height_lidar;
-
-// 	float x_vel_flow;
-// 	float y_vel_flow;
-// 	float height_flow_sensor;
-
-// 	float bno055_heading;
-// } gnc_raw_data;
-
-// typedef struct {
-// 	float roll;
-// 	float pitch;
-// 	float yaw;
-
-// 	float roll_rate;
-// 	float pitch_rate;
-// 	float yaw_rate;
-
-// 	float height;
-// 	float vertical_velocity;
-// } gnc_state_data;
-
-void gnc_init(void);
+void gnc_init(float attitude_kP, float attitude_kD, float rate_kP, gnc_control_mode m);
 
 void gnc_enable(void);
 void gnc_disable(void);
 uint8_t gnc_enabled(void);
 
-void gnc_get_vehicle_state(void);
-// void velocity_controller_update(float vel_cmd_x, float vel_cmd_y, float vel_x, float vel_y, float *roll_cmd, float *pitch_cmd);
+void gnc_update_vehicle_state(void);
 void gnc_integral_disable(void);
 void gnc_integral_enable(void);
-void gnc_vehicle_stabilization_outerloop_update(float roll_cmd_in,
-											float pitch_cmd_in,
-											float yaw_cmd_in,
-											float *roll_rate_cmd_out,
-											float *pitch_rate_cmd_out,
-											float *yaw_rate_cmd_out);
-void gnc_vehicle_stabilization_innerloop_update(float roll_rate_cmd_in,
-											float pitch_rate_cmd_in,
-											float yaw_rate_cmd_in,
-											float throttle_value_in,
-											double *motor_commands_out);
-void gnc_height_kalman_struct_init(height_kalman_data_struct *str, float filter_dt_sec, float r_lidar);
-void gnc_height_kalman_update(height_kalman_data_struct *str, float lidar_height_measurement, float accelerometer_z_measurement, float vehicle_roll_deg, float vehicle_pitch_deg);
-float gnc_bno055_get_relative_heading(float raw_heading, float prior_heading);
-float gnc_height_controller_thrust_offset(float rotor_dia_meters, float height_meters);
-float gnc_get_height_controller_throttle_command(float height_commanded, float height_estimate, float vertical_velocity_estimate);
+
+void gnc_attitude_controller_update(float roll_cmd_in, float pitch_cmd_in, float yaw_rate_cmd_in);
+void gnc_attitude_rate_controller_update(float throttle_value_in);
+void gnc_get_actuator_commands(float* commands);
+float gnc_get_height_controller_throttle_command(float height_commanded);
+// float gnc_height_controller_thrust_offset(float rotor_dia_meters, float height_meters);
+
+float gnc_compass_get_relative_heading(float raw_heading, float prior_heading);
 // float get_compensated_sf10_data(vehicle_relative_height_tracker *tr, 
 // 											float sf10_raw_measurement, float sf10_previous_raw_measurement,
 // 											float current_height_cmd, float previous_height_cmd);
@@ -125,6 +57,6 @@ float gnc_get_height_controller_throttle_command(float height_commanded, float h
 void gnc_get_raw_sensor_data(observation *ret);
 void gnc_get_state_vector_data(complementary_filter_struct *ret);
 
-float gnc_get_vertical_dynamic_acceleration(void);
+void get_height_state_vector(float* h, float* v, float* a);
 
 #endif

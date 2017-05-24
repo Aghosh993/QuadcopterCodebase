@@ -214,48 +214,94 @@ int initialize_imu(ACC_SCALE a, GYRO_SCALE g, MAG_SCALE m, imu_scaled_data_struc
 	return 0;
 }
 
+// int get_raw_imu_data(imu_raw_data_struct* buffer)
+// {
+// 	union {
+// 		struct {
+// 			int16_t x_accel_data;
+// 			int16_t y_accel_data;
+// 			int16_t z_accel_data;
+// 			int16_t temp_sensor_data;
+// 			int16_t x_gyro_data;
+// 			int16_t y_gyro_data;
+// 			int16_t z_gyro_data;
+// 		} sensor_data_output;
+// 		struct {
+// 			uint8_t sensor_raw_bytes[14];
+// 		} sensor_data_input;
+// 	} convert_sensor_data;
+
+// 	int ret = mpu9250_read_multiple_registers(MPU9250_ACCEL_XOUT_H, convert_sensor_data.sensor_data_input.sensor_raw_bytes, 14);
+
+// 	if(ret < 14)
+// 	{
+// 		return -1;
+// 	}
+
+// 	uint8_t i = 0U;
+// 	uint8_t temp_buf = 0U;
+
+// 	for(i=0U; i<7U; ++i)
+// 	{
+// 		temp_buf = convert_sensor_data.sensor_data_input.sensor_raw_bytes[i*2U];
+// 		convert_sensor_data.sensor_data_input.sensor_raw_bytes[i*2U] = convert_sensor_data.sensor_data_input.sensor_raw_bytes[i*2U + 1U];
+// 		convert_sensor_data.sensor_data_input.sensor_raw_bytes[i*2U+1U] = temp_buf;
+// 	}
+
+// 	buffer->accel_data[0] = convert_sensor_data.sensor_data_output.x_accel_data;
+// 	buffer->accel_data[1] = convert_sensor_data.sensor_data_output.y_accel_data;
+// 	buffer->accel_data[2] = convert_sensor_data.sensor_data_output.z_accel_data;
+
+// 	buffer->temp_sensor_data = convert_sensor_data.sensor_data_output.temp_sensor_data;
+
+// 	buffer->gyro_data[0] = convert_sensor_data.sensor_data_output.x_gyro_data;
+// 	buffer->gyro_data[1] = convert_sensor_data.sensor_data_output.y_gyro_data;
+// 	buffer->gyro_data[2] = convert_sensor_data.sensor_data_output.z_gyro_data;
+// 	return 0;
+// }
+
 int get_raw_imu_data(imu_raw_data_struct* buffer)
 {
-	union {
-		struct {
-			int16_t x_accel_data;
-			int16_t y_accel_data;
-			int16_t z_accel_data;
-			int16_t temp_sensor_data;
-			int16_t x_gyro_data;
-			int16_t y_gyro_data;
-			int16_t z_gyro_data;
-		} sensor_data_output;
-		struct {
-			uint8_t sensor_raw_bytes[14];
-		} sensor_data_input;
-	} convert_sensor_data;
+	uint8_t sensor_raw_bytes[14];
 
-	int ret = mpu9250_read_multiple_registers(MPU9250_ACCEL_XOUT_H, convert_sensor_data.sensor_data_input.sensor_raw_bytes, 14);
+	union {
+		uint8_t in[2];
+		int16_t output;
+	} conv;
+
+	int ret = mpu9250_read_multiple_registers(MPU9250_ACCEL_XOUT_H, sensor_raw_bytes, 14);
 
 	if(ret < 14)
 	{
 		return -1;
 	}
 
-	uint8_t i = 0U;
-	uint8_t temp_buf = 0U;
+	conv.in[0] = sensor_raw_bytes[1];
+	conv.in[1] = sensor_raw_bytes[0];
+	buffer->accel_data[0] = conv.output;
 
-	for(i=0U; i<7U; ++i)
-	{
-		temp_buf = convert_sensor_data.sensor_data_input.sensor_raw_bytes[i*2U];
-		convert_sensor_data.sensor_data_input.sensor_raw_bytes[i*2U] = convert_sensor_data.sensor_data_input.sensor_raw_bytes[i*2U + 1U];
-		convert_sensor_data.sensor_data_input.sensor_raw_bytes[i*2U+1U] = temp_buf;
-	}
+	conv.in[0] = sensor_raw_bytes[3];
+	conv.in[1] = sensor_raw_bytes[2];
+	buffer->accel_data[1] = conv.output;
+	
+	conv.in[0] = sensor_raw_bytes[5];
+	conv.in[1] = sensor_raw_bytes[4];
+	buffer->accel_data[2] = conv.output;
 
-	buffer->accel_data[0] = convert_sensor_data.sensor_data_output.x_accel_data;
-	buffer->accel_data[1] = convert_sensor_data.sensor_data_output.y_accel_data;
-	buffer->accel_data[2] = convert_sensor_data.sensor_data_output.z_accel_data;
+	conv.in[0] = sensor_raw_bytes[7];
+	conv.in[1] = sensor_raw_bytes[6];
+	buffer->temp_sensor_data = conv.output;
 
-	buffer->temp_sensor_data = convert_sensor_data.sensor_data_output.temp_sensor_data;
+	conv.in[0] = sensor_raw_bytes[9];
+	conv.in[1] = sensor_raw_bytes[8];
+	buffer->gyro_data[0] = conv.output;
 
-	buffer->gyro_data[0] = convert_sensor_data.sensor_data_output.x_gyro_data;
-	buffer->gyro_data[1] = convert_sensor_data.sensor_data_output.y_gyro_data;
-	buffer->gyro_data[2] = convert_sensor_data.sensor_data_output.z_gyro_data;
+	conv.in[0] = sensor_raw_bytes[11];
+	conv.in[1] = sensor_raw_bytes[10];
+	buffer->gyro_data[1] = conv.output;
+
+	conv.in[0] = sensor_raw_bytes[13];
+	conv.in[1] = sensor_raw_bytes[12];
+	buffer->gyro_data[2] = conv.output;
 	return 0;
 }
