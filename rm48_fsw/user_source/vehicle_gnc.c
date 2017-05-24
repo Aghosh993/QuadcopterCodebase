@@ -85,12 +85,7 @@ void gnc_init(float attitude_kP, float attitude_kD, float rate_kP, gnc_control_m
 	motor2_cmd = 0.0f;
 	motor3_cmd = 0.0f;
 	motor4_cmd = 0.0f;
-
-	gnc_en = 0U;
 	
-	controller_init_vars();								// Set controller gains
-	set_controller_mode(MODE_ANGULAR_POSITION_CONTROL); // Set controller to stabilize (i.e. angular control) mode
-	enable_controller(); 								// Enable all PID loops // Depreciated
 	gnc_disable();
 }
 
@@ -133,9 +128,19 @@ void gnc_update_vehicle_state(void)
 	{
 		kalman_3state_lidar_update(&h_state, get_last_can_height_msg(), 0.040f);
 	}
+
+	#if defined GNC_USE_ABS_HEADING
+		/*
+			Bit of a hack to put the BNO055 yaw data into the "yaw" field of the state vector.
+			Ideally that field should be populated using the MPU-9250's magnetometer-derived yaw via EKF or Complementary Filter... :)
+		 */
+		st_vector.state_vector.yaw = degrees_to_radians(get_last_can_heading_msg());
+	#else
+		st_vector.state_vector.yaw = 0.0f;
+	#endif
 }
 
-void get_height_state_vector(float* h, float* v, float* a)
+void gnc_get_height_state_vector(float* h, float* v, float* a)
 {
 	*h = h_state.state_vector.z;
 	*v = h_state.state_vector.v_z;
@@ -154,11 +159,30 @@ void gnc_get_state_vector_data(complementary_filter_struct *ret)
 
 void gnc_attitude_controller_update(float roll_cmd_in, float pitch_cmd_in, float yaw_rate_cmd_in)
 {
+	static float integrated_yaw_cmd = 0.0f;
+
 	if(gnc_enabled())
 	{
+		if(yaw_rate_cmd_in < -1.0f*YAW_RATE_DEADBAND || yaw_rate_cmd_in > YAW_RATE_DEADBAND)
+		{
+			integrated_yaw_cmd += yaw_rate_cmd_in*-1.0f*YAW_RATE_INTEGRATION_MULTIPLIER;
+		}
+		if(integrated_yaw_cmd < -2.0f*(float)M_PI)
+		{
+			integrated_yaw_cmd = -2.0f*(float)M_PI;
+		}
+		else if(integrated_yaw_cmd > 2.0f*(float)M_PI)
+		{
+			integrated_yaw_cmd = 2.0f*(float)M_PI;
+		}
+
 		roll_rate_cmd = att_kP*(roll_cmd_in*ATTITUDE_CMD_MULTIPLIER - st_vector.state_vector.roll) - att_kD*st_vector.state_vector.roll_rate;
 		pitch_rate_cmd = att_kP*(pitch_cmd_in*ATTITUDE_CMD_MULTIPLIER*-1.0f - st_vector.state_vector.pitch) - att_kD*st_vector.state_vector.pitch_rate;
-		yaw_rate_cmd = att_kP*(yaw_rate_cmd_in*ATTITUDE_CMD_MULTIPLIER*-1.0f);
+		#if !defined GNC_USE_ABS_HEADING
+			yaw_rate_cmd = att_kP*(yaw_rate_cmd_in*ATTITUDE_CMD_MULTIPLIER*-1.0f);
+		#else
+			yaw_rate_cmd = 0.75f*gnc_compass_get_relative_heading_rad(integrated_yaw_cmd, st_vector.state_vector.yaw);
+		#endif
 	}
 }
 
@@ -214,30 +238,31 @@ float gnc_compass_get_relative_heading(float raw_heading, float prior_heading)
 	return delta_theta;
 }
 
+float gnc_compass_get_relative_heading_rad(float raw_heading, float prior_heading)
+{
+	float delta_theta = raw_heading - prior_heading;
+	if(delta_theta > 3.14159f)
+	{
+		delta_theta -= 2.0f*3.14159f;
+	}
+	if(delta_theta < -3.14159f)
+	{
+		delta_theta += 2.0f*3.14159f;
+	}
+	return delta_theta;
+}
+
 float gnc_get_height_controller_throttle_command(float height_commanded)
 {
-	static float height_pid_err_accum = 0.0f;
 	float height_error = 0.0f;
 	float height_pid_adj = 0.0f;
 	float height_pid_max_adj = 0.275f;
 
 	// Compute height error in meters:
 	height_error = height_commanded - h_state.state_vector.z;
-	// Compute height accumulated error in meter*seconds:
-	height_pid_err_accum += height_error * HEIGHT_CONTROL_DT;
-
-	// Saturate the height accumulated error integral:
-	if(height_pid_err_accum < -1.0f)
-	{
-		height_pid_err_accum = -1.0f;
-	}
-	if(height_pid_err_accum > 1.0f)
-	{
-		height_pid_err_accum = 1.0f;
-	}
 
 	// Compute height PID adjustment:
-	height_pid_adj = (1.17 * height_error) + (height_pid_err_accum * 0.00f) + (-0.72f * h_state.state_vector.v_z);
+	height_pid_adj = (1.17 * height_error) + (-0.72f * h_state.state_vector.v_z);
 
 	// Saturate height PID adjustment:
 	if(height_pid_adj < -1.0f * height_pid_max_adj)

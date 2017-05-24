@@ -8,7 +8,7 @@ JLINK_PATH=../../JLink_Linux_V480_x86_64
 PREFIX=$(TOOLCHAIN)/arm-none-eabi-
 
 ARCHFLAGS=-mcpu=cortex-r4f -march=armv7-r -mfloat-abi=soft -mfpu=vfpv3-d16 -I$(TOOLCHAIN_ROOT)/arm-none-eabi/include  -fsingle-precision-constant
-CFLAGS=-nostdlib -ffunction-sections -I$(ATHENA_PATH)/board/ap2v4_rm48l950/inc/ -I./user_include -I./user_include/hal_interface -g -O1 -Wall -DSYSTEM_SHELL_BAREMETAL -DUSE_STATIC_ALLOC -DUSE_FLOAT_DATATYPE
+CFLAGS=-nostdlib -ffunction-sections -I$(ATHENA_PATH)/board/ap2v4_rm48l950/inc/ -I./user_include -I./user_include/hal_interface -g -O1 -Wall -DSYSTEM_SHELL_BAREMETAL -DUSE_STATIC_ALLOC -DUSE_FLOAT_DATATYPE -DGNC_USE_ABS_HEADING
 LDFLAGS=--specs=nosys.specs -Wl,--gc-sections,-Map,$(TARGET).map,-Tlinker.ld
 LDFLAGS+=$(ARCHFLAGS)
 

@@ -3,8 +3,8 @@
 #include "interrupt_utils.h"
 
 // User/flight software libraries:
-#include "basic_pid_controller.h"
-#include "iir_filters.h"
+// #include "basic_pid_controller.h"
+// #include "iir_filters.h"
 #include "Quadcopter_PWM_HAL.h"
 #include "rt_telemetry.h"
 #include "misc_utils.h"
@@ -15,9 +15,8 @@
 #include "telem_config.h"
 #include "vehicle_gnc.h"
 #include "serial_comms_highlevel.h"
-// #include "can_comms.h"
 #include "cpu_hal_interface.h"
-#include "system_shell.h"	
+#include "system_shell.h"
 #include "can_comms.h"
 #include "complementary_filter.h"
 
@@ -406,30 +405,6 @@ void flight_app(int argc, char** argv)
 
 				update_cmds = 0;
 
-				// roll_adj = rate_kP*(roll_rate_cmd_local-degrees_to_radians(sd.imu_data->gyro_data[0]));
-				// pitch_adj = rate_kP*(pitch_rate_cmd_local-degrees_to_radians(sd.imu_data->gyro_data[1]));
-				// yaw_adj = rate_kP*(yaw_rate_cmd_local-degrees_to_radians(sd.imu_data->gyro_data[2]));
-
-				// m1_cmd = throttle_value_common_local + roll_adj*0.5f + pitch_adj*0.5f + yaw_adj;
-				// m2_cmd = throttle_value_common_local - roll_adj*0.5f + pitch_adj*0.5f - yaw_adj;
-				// m3_cmd = throttle_value_common_local - roll_adj*0.5f - pitch_adj*0.5f + yaw_adj;
-				// m4_cmd = throttle_value_common_local + roll_adj*0.5f - pitch_adj*0.5f - yaw_adj;
-
-				// m1_cmd = height_closedloop_throttle_cmd + roll_adj*0.5f + pitch_adj*0.5f + yaw_adj;
-				// m2_cmd = height_closedloop_throttle_cmd - roll_adj*0.5f + pitch_adj*0.5f - yaw_adj;
-				// m3_cmd = height_closedloop_throttle_cmd - roll_adj*0.5f - pitch_adj*0.5f + yaw_adj;
-				// m4_cmd = height_closedloop_throttle_cmd + roll_adj*0.5f - pitch_adj*0.5f - yaw_adj;
-
-				// check_saturation(&m1_cmd, 0.01f, 0.97f);
-				// check_saturation(&m2_cmd, 0.01f, 0.97f);
-				// check_saturation(&m3_cmd, 0.01f, 0.97f);
-				// check_saturation(&m4_cmd, 0.01f, 0.97f);
-				
-				// mcmds[0]=m1_cmd;
-				// mcmds[1]=m2_cmd;
-				// mcmds[2]=m3_cmd;
-				// mcmds[3]=m4_cmd;
-
 				// gnc_attitude_rate_controller_update(throttle_value_common_local); // Open-loop height
 				gnc_attitude_rate_controller_update(height_closedloop_throttle_cmd); // Closed-loop height
 				gnc_get_actuator_commands(&mcmds[0]);
@@ -466,10 +441,6 @@ void flight_app(int argc, char** argv)
 			if(get_flag_state(flag_100hz) == STATE_PENDING)
 			{
 				reset_flag(flag_100hz);
-				// roll_rate_cmd_local = attitude_kP*((roll_cmd*0.6f)-sd.state_vector.roll) - attitude_kD*sd.state_vector.roll_rate;
-				// pitch_rate_cmd_local = attitude_kP*((pitch_cmd*-0.6f)-sd.state_vector.pitch) - attitude_kD*sd.state_vector.pitch_rate; 	// Since pitch stick is opposite pitch 
-				// 																														// angle convention for aircraft body frame
-				// yaw_rate_cmd_local = 0.3f*(yaw_cmd*-4.5f);
 				gnc_attitude_controller_update(roll_cmd, pitch_cmd, yaw_cmd);
 			}
 			
@@ -489,12 +460,8 @@ void flight_app(int argc, char** argv)
 					send_telem_msg_n_floats_blocking(&telem0, (uint8_t *)"state", 5, att_data, 2);
 				#endif
 
-				get_height_state_vector(&height_estimate, &vert_vel_estimate, &vert_accel_estimate);
-				height_closedloop_throttle_cmd = gnc_get_height_controller_throttle_command(throttle_value_common_local*max_height_cmd);//, height_estimate, vert_vel_estimate);
-
-				// Run GNC angular outer loop control to generate rate commands for inner loop:
-				// gnc_vehicle_stabilization_outerloop_update(roll_cmd, pitch_cmd, yaw_cmd,
-				// 											&roll_rate_cmd_local, &pitch_rate_cmd_local, &yaw_rate_cmd_local);
+				gnc_get_height_state_vector(&height_estimate, &vert_vel_estimate, &vert_accel_estimate);
+				height_closedloop_throttle_cmd = gnc_get_height_controller_throttle_command(throttle_value_common_local*max_height_cmd);
 
 				_disable_interrupts();
 					roll_rate_cmd = roll_rate_cmd_local;
