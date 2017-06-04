@@ -3,8 +3,6 @@
 #include "interrupt_utils.h"
 
 // User/flight software libraries:
-// #include "basic_pid_controller.h"
-// #include "iir_filters.h"
 #include "Quadcopter_PWM_HAL.h"
 #include "rt_telemetry.h"
 #include "misc_utils.h"
@@ -25,19 +23,43 @@
 #include <string.h>
 
 /*
-	Quadcopter primary flight software file.
-	This file performs overall system initialization, setup and realtime control of a quadcopter.
-	It also handles various operational modes, failsafes and command data I/O.
+	BSD 3-Clause License
 
-	All code contained within this file is the original work of the copyright-holder named below, and
-	is licensed under the GPLv3 open-source software license. As such, this work is a DERIVED work of an existing GPLv3
-	project by the same copyright-holder, and is thus released under an identical license.
+	Copyright (c) 2016-2017, Abhimanyu Ghosh
+	All rights reserved.
+
+	Redistribution and use in source and binary forms, with or without
+	modification, are permitted provided that the following conditions are met:
+
+	* Redistributions of source code must retain the above copyright notice, this
+	list of conditions and the following disclaimer.
+
+	* Redistributions in binary form must reproduce the above copyright notice,
+	this list of conditions and the following disclaimer in the documentation
+	and/or other materials provided with the distribution.
+
+	* Neither the name of the copyright holder nor the names of its
+	contributors may be used to endorse or promote products derived from
+	this software without specific prior written permission.
+
+	THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+	AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+	IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+	DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+	FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+	DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+	SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+	CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+	OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+	OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 	The end user of this file is responsible for observing all applicable patent, intellectual property and export control laws
 	in his/her jurisdiction, and releases the person named below from any liabilities, with the understanding that this
 	source code is provided "as-is".
 
-	(c) 2016-2017, Abhimanyu Ghosh
+	Quadcopter primary flight software file.
+	This file performs overall system initialization, setup and realtime control of a quadcopter.
+	It also handles various operational modes, failsafes and command data I/O.
  */
 
 /* USER CODE END */
