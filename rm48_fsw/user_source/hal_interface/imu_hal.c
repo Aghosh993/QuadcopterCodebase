@@ -98,7 +98,8 @@ static void do_bias_calculation(imu_scaled_data_struct *imu_data)
 
 	for(i=0U; i<BIAS_CALC_NUM_SAMPLES; ++i)
 	{
-		get_scaled_imu_data(imu_data);
+		// get_scaled_imu_data(imu_data);
+		get_scaled_imu_data_no_bias_comp(imu_data);
 
 		roll_gyro_running_sum += imu_data->gyro_data[AXIS_ROLL];
 		pitch_gyro_running_sum += imu_data->gyro_data[AXIS_PITCH];
@@ -213,52 +214,6 @@ int initialize_imu(ACC_SCALE a, GYRO_SCALE g, MAG_SCALE m, imu_scaled_data_struc
 	do_bias_calculation(buf);
 	return 0;
 }
-
-// int get_raw_imu_data(imu_raw_data_struct* buffer)
-// {
-// 	union {
-// 		struct {
-// 			int16_t x_accel_data;
-// 			int16_t y_accel_data;
-// 			int16_t z_accel_data;
-// 			int16_t temp_sensor_data;
-// 			int16_t x_gyro_data;
-// 			int16_t y_gyro_data;
-// 			int16_t z_gyro_data;
-// 		} sensor_data_output;
-// 		struct {
-// 			uint8_t sensor_raw_bytes[14];
-// 		} sensor_data_input;
-// 	} convert_sensor_data;
-
-// 	int ret = mpu9250_read_multiple_registers(MPU9250_ACCEL_XOUT_H, convert_sensor_data.sensor_data_input.sensor_raw_bytes, 14);
-
-// 	if(ret < 14)
-// 	{
-// 		return -1;
-// 	}
-
-// 	uint8_t i = 0U;
-// 	uint8_t temp_buf = 0U;
-
-// 	for(i=0U; i<7U; ++i)
-// 	{
-// 		temp_buf = convert_sensor_data.sensor_data_input.sensor_raw_bytes[i*2U];
-// 		convert_sensor_data.sensor_data_input.sensor_raw_bytes[i*2U] = convert_sensor_data.sensor_data_input.sensor_raw_bytes[i*2U + 1U];
-// 		convert_sensor_data.sensor_data_input.sensor_raw_bytes[i*2U+1U] = temp_buf;
-// 	}
-
-// 	buffer->accel_data[0] = convert_sensor_data.sensor_data_output.x_accel_data;
-// 	buffer->accel_data[1] = convert_sensor_data.sensor_data_output.y_accel_data;
-// 	buffer->accel_data[2] = convert_sensor_data.sensor_data_output.z_accel_data;
-
-// 	buffer->temp_sensor_data = convert_sensor_data.sensor_data_output.temp_sensor_data;
-
-// 	buffer->gyro_data[0] = convert_sensor_data.sensor_data_output.x_gyro_data;
-// 	buffer->gyro_data[1] = convert_sensor_data.sensor_data_output.y_gyro_data;
-// 	buffer->gyro_data[2] = convert_sensor_data.sensor_data_output.z_gyro_data;
-// 	return 0;
-// }
 
 int get_raw_imu_data(imu_raw_data_struct* buffer)
 {

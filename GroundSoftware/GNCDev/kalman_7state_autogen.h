@@ -1,0 +1,29 @@
+/******************************************************************************
+ *                       Code generated with sympy 1.0                        *
+ *                                                                            *
+ *              See http://www.sympy.org/ for more information.               *
+ *                                                                            *
+ *                 This file is part of 'Kalman_7state_Core'                  *
+ ******************************************************************************/
+
+
+#ifndef KALMAN_7STATE_CORE__KALMAN_7STATE_AUTOGEN__H
+#define KALMAN_7STATE_CORE__KALMAN_7STATE_AUTOGEN__H
+
+void predict_state7(float az_dyn, float dt, float h, float pitch, float pitch_rate, float roll, float roll_rate, float v, float *out_7294160474070428019);
+void predict_cov7(float dt, float p11, float p12, float p13, float p14, float p15, float p16, float p17, float p21, float p22, float p23, float p24, float p25, float p26, float p27, float p31, float p32, float p33, float p34, float p35, float p36, float p37, float p41, float p42, float p43, float p44, float p45, float p46, float p47, float p51, float p52, float p53, float p54, float p55, float p56, float p57, float p61, float p62, float p63, float p64, float p65, float p66, float p67, float p71, float p72, float p73, float p74, float p75, float p76, float p77, float q11, float q22, float q33, float q44, float q55, float q66, float q77, float *out_1954641373464739435);
+void update_gain_accel(float g, float p11, float p12, float p17, float p21, float p22, float p27, float p31, float p32, float p37, float p41, float p42, float p47, float p51, float p52, float p57, float p61, float p62, float p67, float p71, float p72, float p77, float r11, float r22, float r33, float *out_3116608753311902538);
+void update_innovation_accel(float ax, float ay, float az, float az_dyn, float g, float pitch, float roll, float *out_6225598155390527033);
+void update_state_accel(float ax, float ay, float az, float az_dyn, float g, float g11, float g12, float g13, float g21, float g22, float g23, float g31, float g32, float g33, float g41, float g42, float g43, float g51, float g52, float g53, float g61, float g62, float g63, float g71, float g72, float g73, float h, float pitch, float pitch_rate, float roll, float roll_rate, float v, float *out_5918412186688097944);
+void update_cov_accel(float g, float g11, float g12, float g13, float g21, float g22, float g23, float g31, float g32, float g33, float g41, float g42, float g43, float g51, float g52, float g53, float g61, float g62, float g63, float g71, float g72, float g73, float p11, float p12, float p13, float p14, float p15, float p16, float p17, float p21, float p22, float p23, float p24, float p25, float p26, float p27, float p31, float p32, float p33, float p34, float p35, float p36, float p37, float p41, float p42, float p43, float p44, float p45, float p46, float p47, float p51, float p52, float p53, float p54, float p55, float p56, float p57, float p61, float p62, float p63, float p64, float p65, float p66, float p67, float p71, float p72, float p73, float p74, float p75, float p76, float p77, float *out_8899364086708404823);
+void update_gain_gyro(float p13, float p14, float p23, float p24, float p33, float p34, float p43, float p44, float p53, float p54, float p63, float p64, float p73, float p74, float r44, float r55, float *out_8391242881630657245);
+void update_innovation_gyro(float gyro_pitch, float gyro_roll, float pitch_rate, float roll_rate, float *out_5217011749530427604);
+void update_state_gyro(float az_dyn, float g11, float g12, float g21, float g22, float g31, float g32, float g41, float g42, float g51, float g52, float g61, float g62, float g71, float g72, float gyro_pitch, float gyro_roll, float h, float pitch, float pitch_rate, float roll, float roll_rate, float v, float *out_2100921197882637313);
+void update_cov_gyro(float g11, float g12, float g21, float g22, float g31, float g32, float g41, float g42, float g51, float g52, float g61, float g62, float g71, float g72, float p11, float p12, float p13, float p14, float p15, float p16, float p17, float p21, float p22, float p23, float p24, float p25, float p26, float p27, float p31, float p32, float p33, float p34, float p35, float p36, float p37, float p41, float p42, float p43, float p44, float p45, float p46, float p47, float p51, float p52, float p53, float p54, float p55, float p56, float p57, float p61, float p62, float p63, float p64, float p65, float p66, float p67, float p71, float p72, float p73, float p74, float p75, float p76, float p77, float *out_2632967519352958486);
+void update_gain_rangefinder(float p15, float p25, float p35, float p45, float p55, float p65, float p75, float r66, float *out_1463115039308031161);
+void update_innovation_rangefinder(float h, float h_lidar, float *out_5326467223387434636);
+void update_state_rangefinder(float az_dyn, float g11, float g21, float g31, float g41, float g51, float g61, float g71, float h, float h_lidar, float pitch, float pitch_rate, float roll, float roll_rate, float v, float *out_7697559358414380243);
+void update_cov_rangefinder(float g11, float g21, float g31, float g41, float g51, float g61, float g71, float p11, float p12, float p13, float p14, float p15, float p16, float p17, float p21, float p22, float p23, float p24, float p25, float p26, float p27, float p31, float p32, float p33, float p34, float p35, float p36, float p37, float p41, float p42, float p43, float p44, float p45, float p46, float p47, float p51, float p52, float p53, float p54, float p55, float p56, float p57, float p61, float p62, float p63, float p64, float p65, float p66, float p67, float p71, float p72, float p73, float p74, float p75, float p76, float p77, float *out_4405977212521852574);
+
+#endif
+

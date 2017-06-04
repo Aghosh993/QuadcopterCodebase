@@ -364,7 +364,7 @@ void flight_app(int argc, char** argv)
 	float mission_time_sec = 0.0f;
 	int32_t mission_time_msec = 0;
 
-	init_rc_inputs(&rc_data, 0);
+	init_rc_inputs(&rc_data, 1);
 	
 	float roll_rate_cmd_local, pitch_rate_cmd_local, yaw_rate_cmd_local, throttle_value_common_local;
 	roll_rate_cmd_local = 0.0f;

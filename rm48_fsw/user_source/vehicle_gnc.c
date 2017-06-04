@@ -181,7 +181,7 @@ void gnc_attitude_controller_update(float roll_cmd_in, float pitch_cmd_in, float
 		#if !defined GNC_USE_ABS_HEADING
 			yaw_rate_cmd = att_kP*(yaw_rate_cmd_in*ATTITUDE_CMD_MULTIPLIER*-1.0f);
 		#else
-			yaw_rate_cmd = 0.75f*gnc_compass_get_relative_heading_rad(integrated_yaw_cmd, st_vector.state_vector.yaw);
+			yaw_rate_cmd = 0.65f*gnc_compass_get_relative_heading_rad(integrated_yaw_cmd, st_vector.state_vector.yaw);
 		#endif
 	}
 }
@@ -190,7 +190,7 @@ void gnc_attitude_rate_controller_update(float throttle_value_in)
 {
 	float roll_adj = att_rate_kP*(roll_rate_cmd-degrees_to_radians(st_vector.imu_data->gyro_data[0]));
 	float pitch_adj = att_rate_kP*(pitch_rate_cmd-degrees_to_radians(st_vector.imu_data->gyro_data[1]));
-	float yaw_adj = att_rate_kP*(yaw_rate_cmd-degrees_to_radians(st_vector.imu_data->gyro_data[2]));
+	float yaw_adj = att_rate_kP*2.0f*(yaw_rate_cmd-degrees_to_radians(st_vector.imu_data->gyro_data[2]));
 
 	if(gnc_enabled())
 	{

@@ -20,5 +20,6 @@
 #define TEMP_OFFSET					5900U  	// Need to verify this!!
 
 int get_scaled_imu_data(imu_scaled_data_struct* buffer);
+int get_scaled_imu_data_no_bias_comp(imu_scaled_data_struct* buffer);
 
 #endif
