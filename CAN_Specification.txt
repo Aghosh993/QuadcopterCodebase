@@ -1,8 +1,0 @@
-CAN Arb ID overview (11-bit IDs):
-
-[TM4C] 0x1: Height+Heading message. Bytes [0,3] = Height (float) Bytes [4,7] = Heading (float)
-[TM4C] 0x2: Optical flow message. Bytes [0,3] = x flow, compensated, m/s (float) Bytes [4,7] = y flow, compensated, m/s (float)
-[RM48] 0x3: Roll, pitch. Bytes [0,3] = roll, degrees (float) Bytes [4,7] = pitch, degrees (float)
-[RM48] 0x4: Yaw, Estimated Height. Bytes [0,3] = yaw, degrees (float), Bytes [4,7] = Estimated height, meters (float)
-[RM48] 0x5: Estimated vertical velocity. Bytes [0,3] = vertical velocity estimate, meters/s (float), Bytes [4,7] = Don't care (X) 
-[RM48] 0x6: ESC Motor commands, Bytes [0,7] = Motor commands, normalized to uint16 (uint16_t)
