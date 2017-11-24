@@ -1,3 +1,6 @@
 [submodule "Athena"]
 	path = Athena
 	url = https://github.com/Aghosh993/Athena.git
+[submodule "ExternalLibs/MavlinkV2"]
+	path = ExternalLibs/MavlinkV2
+	url = git@github.com:Aghosh993/c_library_v2.git
